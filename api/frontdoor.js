@@ -9,10 +9,11 @@ export default async function handler(req, res) {
 
   try {
     const SF_DOMAIN     = process.env.SF_DOMAIN;
+    const SF_SITE       = process.env.SF_SITE;   // e.g. creationtechnology4.my.site.com/testlwr
     const CLIENT_ID     = process.env.SF_CLIENT_ID;
     const CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
 
-    if (!SF_DOMAIN || !CLIENT_ID || !CLIENT_SECRET) {
+    if (!SF_DOMAIN || !SF_SITE || !CLIENT_ID || !CLIENT_SECRET) {
       return res.status(500).json({ error: "Missing environment variables" });
     }
 
@@ -36,14 +37,18 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "Failed to get Salesforce token", detail: err });
     }
 
-    const { access_token, instance_url } = await tokenRes.json();
+    const { access_token } = await tokenRes.json();
 
-    // Step 2: Build frontdoor URL pointing retURL to the LWR site
-    // This ensures the auth redirect lands on my.site.com (allows framing)
-    // instead of my.salesforce.com (frame-ancestors: none)
-    const retURL = encodeURIComponent("/testlwr/lightning-out");
+    // Step 2: Build frontdoor URL using the SITE domain as origin.
+    // LO2 source (#z) extracts origin from this URL and uses it for ALL
+    // subsequent iframe loads — so it must be the site domain (my.site.com),
+    // NOT the org domain (my.salesforce.com), to avoid frame-ancestors:none.
+    //
+    // The LWR site handles frontdoor auth at /testlwr/secur/frontdoor.jsp
+    const siteOrigin = `https://${SF_SITE.split("/")[0]}`;
+    const sitePath   = "/" + SF_SITE.split("/").slice(1).join("/");
     const frontdoorUrl =
-      `${instance_url}/secur/frontdoor.jsp?sid=${access_token}&retURL=${retURL}`;
+      `${siteOrigin}${sitePath}/secur/frontdoor.jsp?sid=${access_token}`;
 
     return res.status(200).json({ frontdoorUrl });
 
