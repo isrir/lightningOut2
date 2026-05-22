@@ -38,33 +38,50 @@ export default async function handler(req, res) {
 
     const { access_token, instance_url } = await tokenRes.json();
 
-    // Step 2: Use the Lightning Out 2.0 dedicated endpoint
-    // /services/oauth2/lightningoutsingleaccess is purpose-built for LO2.
-    // It returns a frontdoor URL whose origin is the LWR site (my.site.com),
-    // not the org root (my.salesforce.com), so frame-ancestors CSP is respected.
+    // Step 2: Try lightningoutsingleaccess with form-encoded body and camelCase siteUrl
+    // The endpoint is form-encoded (like /token), not JSON
     const singleAccessRes = await fetch(
       `${instance_url}/services/oauth2/lightningoutsingleaccess`,
       {
         method: "POST",
         headers: {
           Authorization:  `Bearer ${access_token}`,
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: JSON.stringify({
-          site_url: "https://creationtechnology4.my.site.com/testlwr",
+        body: new URLSearchParams({
+          siteUrl: "https://creationtechnology4.my.site.com/testlwr",
         }),
       }
     );
 
+    const rawBody = await singleAccessRes.text();
+    console.log("SingleAccess status:", singleAccessRes.status);
+    console.log("SingleAccess body:", rawBody);
+
     if (!singleAccessRes.ok) {
-      const err = await singleAccessRes.text();
-      console.error("SingleAccess error:", err);
-      return res.status(502).json({ error: "Failed to get LO2 frontdoor URL", detail: err });
+      return res.status(502).json({
+        error: "Failed to get LO2 frontdoor URL",
+        status: singleAccessRes.status,
+        detail: rawBody,
+      });
     }
 
-    const { frontdoor_uri } = await singleAccessRes.json();
+    let parsed;
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      return res.status(502).json({ error: "Unexpected response format", detail: rawBody });
+    }
 
-    return res.status(200).json({ frontdoorUrl: frontdoor_uri });
+    // Response field may be frontdoor_uri or frontdoorUrl — log all keys
+    console.log("SingleAccess response keys:", Object.keys(parsed));
+
+    const frontdoorUrl = parsed.frontdoor_uri || parsed.frontdoorUrl || parsed.url;
+    if (!frontdoorUrl) {
+      return res.status(502).json({ error: "No frontdoor URL in response", detail: parsed });
+    }
+
+    return res.status(200).json({ frontdoorUrl });
 
   } catch (err) {
     console.error("Unexpected error:", err);
