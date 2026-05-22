@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Enquiry Form</title>
+  <link rel="icon" href="data:,">
+  <script
+    type="text/javascript"
+    async
+    src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"
+  ></script>
+</head>
+<body>
+
+  <lightning-out-application
+    app-id="1UsdN00000025rdSAA"
+    components="c-learning-program-form"
+  ></lightning-out-application>
+
+  <c-learning-program-form></c-learning-program-form>
+
+  <script>
+    // You must fetch frontdoor-url from YOUR backend at runtime
+    fetch("https://your-backend.com/get-frontdoor-url")
+      .then(res => res.json())
+      .then(data => {
+        const app = document.querySelector("lightning-out-application");
+        // This triggers _propertyChanged_frontdoorUrl in the LO2 source
+        // which loads the auth iframe and establishes the session
+        app.setAttribute("frontdoor-url", data.frontdoorUrl);
+      })
+      .catch(err => console.error("Failed to get frontdoor URL:", err));
+  </script>
+
+</body>
+</html>
