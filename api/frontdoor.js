@@ -38,9 +38,10 @@ export default async function handler(req, res) {
 
     const { access_token, instance_url } = await tokenRes.json();
 
-    // Step 2: Build frontdoor.jsp URL directly using the access token
-    // This is the classic approach that works on all orgs
-    const retURL = encodeURIComponent("/lightning/n/Home");
+    // Step 2: Build frontdoor URL pointing retURL to the LWR site
+    // This ensures the auth redirect lands on my.site.com (allows framing)
+    // instead of my.salesforce.com (frame-ancestors: none)
+    const retURL = encodeURIComponent("/testlwr/lightning-out");
     const frontdoorUrl =
       `${instance_url}/secur/frontdoor.jsp?sid=${access_token}&retURL=${retURL}`;
 
