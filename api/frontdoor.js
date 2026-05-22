@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Allow GitHub Pages to call this
   res.setHeader("Access-Control-Allow-Origin", "https://isrir.github.io");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -39,30 +38,13 @@ export default async function handler(req, res) {
 
     const { access_token, instance_url } = await tokenRes.json();
 
-    // Step 2: Exchange token for a frontdoor URL via UI Bridge API
-    const bridgeRes = await fetch(
-      `${instance_url}/services/oauth2/frontdoor-bridge`,
-      {
-        method: "POST",
-        headers: {
-          Authorization:  `Bearer ${access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          retURL: "/lightning/n/Home",
-        }),
-      }
-    );
+    // Step 2: Build frontdoor.jsp URL directly using the access token
+    // This is the classic approach that works on all orgs
+    const retURL = encodeURIComponent("/lightning/n/Home");
+    const frontdoorUrl =
+      `${instance_url}/secur/frontdoor.jsp?sid=${access_token}&retURL=${retURL}`;
 
-    if (!bridgeRes.ok) {
-      const err = await bridgeRes.text();
-      console.error("Bridge error:", err);
-      return res.status(502).json({ error: "Failed to get frontdoor URL", detail: err });
-    }
-
-    const { frontdoor_uri } = await bridgeRes.json();
-
-    return res.status(200).json({ frontdoorUrl: frontdoor_uri });
+    return res.status(200).json({ frontdoorUrl });
 
   } catch (err) {
     console.error("Unexpected error:", err);
