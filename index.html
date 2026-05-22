@@ -9,6 +9,10 @@
     async
     src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"
   ></script>
+  <style>
+    body { margin: 0; padding: 0; }
+    #error-msg { color: red; font-family: sans-serif; padding: 20px; display: none; }
+  </style>
 </head>
 <body>
 
@@ -19,17 +23,40 @@
 
   <c-learning-program-form></c-learning-program-form>
 
+  <div id="error-msg"></div>
+
   <script>
-    // You must fetch frontdoor-url from YOUR backend at runtime
-    fetch("https://your-backend.com/get-frontdoor-url")
-      .then(res => res.json())
-      .then(data => {
-        const app = document.querySelector("lightning-out-application");
-        // This triggers _propertyChanged_frontdoorUrl in the LO2 source
-        // which loads the auth iframe and establishes the session
+    const BACKEND_URL = "https://lightning-out2.vercel.app/api/frontdoor";
+
+    const app = document.querySelector("lightning-out-application");
+
+    app.addEventListener("lo.application.ready", () => {
+      console.log("LO2 session established");
+    });
+
+    app.addEventListener("lo.application.error", (e) => {
+      console.error("LO2 error:", e.detail);
+      const el = document.getElementById("error-msg");
+      el.style.display = "block";
+      el.textContent = "Failed to load form: " + (e.detail?.message || "unknown error");
+    });
+
+    fetch(BACKEND_URL)
+      .then((res) => {
+        if (!res.ok) throw new Error("Backend returned " + res.status);
+        return res.json();
+      })
+      .then((data) => {
+        if (!data.frontdoorUrl) throw new Error("No frontdoorUrl in response");
+        console.log("Got frontdoor URL, initializing LO2...");
         app.setAttribute("frontdoor-url", data.frontdoorUrl);
       })
-      .catch(err => console.error("Failed to get frontdoor URL:", err));
+      .catch((err) => {
+        console.error("Failed to get frontdoor URL:", err);
+        const el = document.getElementById("error-msg");
+        el.style.display = "block";
+        el.textContent = "Failed to connect to Salesforce: " + err.message;
+      });
   </script>
 
 </body>
