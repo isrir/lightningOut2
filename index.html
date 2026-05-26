@@ -3,62 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <title>Enquiry Form</title>
-  <link rel="icon" href="data:,">
-  <script
-    type="text/javascript"
-    async
-    src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"
-  ></script>
-  <style>
-    body { margin: 0; padding: 0; }
-    #error-msg { color: red; font-family: sans-serif; padding: 20px; display: none; }
-  </style>
+  <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 </head>
 <body>
 
-  <lightning-out-application
-    app-id="1UsdN00000025rdSAA"
-    components="c-learning-program-form"
-    site-prefix="/testlwr"
-  ></lightning-out-application>
+<lightning-out-application
+  app-id="1UsdN00000025rdSAA"
+  components="c-learning-program-form"
+></lightning-out-application>
 
-  <c-learning-program-form></c-learning-program-form>
+<script>
+// Step 1: Redirect user to Salesforce login
+// You need to implement the OAuth 2.0 Authorization Code Flow
+// Here's a simplified example - in production, handle the callback properly
 
-  <div id="error-msg"></div>
+async function initLightningOut() {
+  // Option A: Get token from URL after OAuth redirect
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  
+  if (!code) {
+    // No token yet - redirect to Salesforce login
+    const clientId = 'YOUR_ECA_CLIENT_ID'; // Must be an External Client App!
+    const redirectUri = window.location.origin + window.location.pathname;
+    const authUrl = `https://creationtechnology4.my.salesforce.com/services/oauth2/authorize?` +
+      `response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}` +
+      `&scope=web api`; // 'web' scope is REQUIRED for LO2
+    
+    window.location.href = authUrl;
+    return;
+  }
+  
+  // Exchange code for token (call your backend)
+  const tokenResponse = await fetch('/api/exchange-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, redirectUri: window.location.origin })
+  });
+  
+  const { accessToken, instanceUrl } = await tokenResponse.json();
+  
+  // Get frontdoor URL using the user token
+  const frontdoorResponse = await fetch('https://lightning-out2.vercel.app/api/frontdoor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessToken, instanceUrl })
+  });
+  
+  const { frontdoorUrl } = await frontdoorResponse.json();
+  
+  // Initialize Lightning Out
+  const app = document.querySelector('lightning-out-application');
+  app.setAttribute('frontdoor-url', frontdoorUrl);
+}
 
-  <script>
-    const BACKEND_URL = "https://lightning-out2.vercel.app/api/frontdoor";
-
-    const app = document.querySelector("lightning-out-application");
-
-    app.addEventListener("lo.application.ready", () => {
-      console.log("LO2 session established");
-    });
-
-    app.addEventListener("lo.application.error", (e) => {
-      console.error("LO2 error:", e.detail);
-      const el = document.getElementById("error-msg");
-      el.style.display = "block";
-      el.textContent = "Failed to load form: " + (e.detail?.message || "unknown error");
-    });
-
-    fetch(BACKEND_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error("Backend returned " + res.status);
-        return res.json();
-      })
-      .then((data) => {
-        if (!data.frontdoorUrl) throw new Error("No frontdoorUrl in response");
-        console.log("Got frontdoor URL, initializing LO2...");
-        app.setAttribute("frontdoor-url", data.frontdoorUrl);
-      })
-      .catch((err) => {
-        console.error("Failed to get frontdoor URL:", err);
-        const el = document.getElementById("error-msg");
-        el.style.display = "block";
-        el.textContent = "Failed to connect to Salesforce: " + err.message;
-      });
-  </script>
+initLightningOut();
+</script>
 
 </body>
 </html>

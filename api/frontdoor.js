@@ -1,87 +1,62 @@
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*"); // temporarily open for debugging
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  // CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  
   if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed. Use POST." });
+  }
 
   try {
-    const SF_DOMAIN     = process.env.SF_DOMAIN;
-    const CLIENT_ID     = process.env.SF_CLIENT_ID;
-    const CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
-
-    // Debug: confirm env vars are loaded (never log secrets in production)
-    console.log("ENV CHECK:", {
-      SF_DOMAIN: !!SF_DOMAIN,
-      CLIENT_ID: !!CLIENT_ID,
-      CLIENT_SECRET: !!CLIENT_SECRET,
-    });
-
-    if (!SF_DOMAIN || !CLIENT_ID || !CLIENT_SECRET) {
-      return res.status(500).json({ error: "Missing environment variables" });
-    }
-
-    // Step 1: Client Credentials token
-    const tokenRes = await fetch(
-      `https://${SF_DOMAIN}/services/oauth2/token`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type:    "client_credentials",
-          client_id:     CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-        }),
-      }
-    );
-
-    const tokenBody = await tokenRes.text();
-    console.log("Token status:", tokenRes.status);
-    console.log("Token body:", tokenBody);
-
-    if (!tokenRes.ok) {
-      return res.status(502).json({ error: "Token failed", detail: tokenBody });
-    }
-
-    const { access_token, instance_url } = JSON.parse(tokenBody);
-
-    // Step 2: lightningoutsingleaccess
-    const singleAccessRes = await fetch(
-      `${instance_url}/services/oauth2/lightningoutsingleaccess`,
-      {
-        method: "POST",
-        headers: {
-          Authorization:  `Bearer ${access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          siteUrl: "https://creationtechnology4.my.site.com/testlwr",
-        }),
-      }
-    );
-
-    const rawBody = await singleAccessRes.text();
-    console.log("SingleAccess status:", singleAccessRes.status);
-    console.log("SingleAccess body:", rawBody);
-
-    if (!singleAccessRes.ok) {
-      return res.status(502).json({
-        error: "lightningoutsingleaccess failed",
-        status: singleAccessRes.status,
-        detail: rawBody,
+    // Frontend must send the OAuth token (obtained via user login)
+    const { accessToken, instanceUrl } = req.body;
+    
+    if (!accessToken || !instanceUrl) {
+      return res.status(400).json({ 
+        error: "Missing required fields. Send { accessToken, instanceUrl }" 
       });
     }
 
-    const parsed = JSON.parse(rawBody);
-    const frontdoorUrl = parsed.frontdoor_uri || parsed.frontdoorUrl || parsed.url;
+    // Call the correct LO2 API endpoint
+    const response = await fetch(
+      `${instanceUrl}/services/lightning/ui/2.0/frontdoor`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          // Optional: specify which app or component to load
+          // appId: "1UsdN00000025rdSAA"
+        })
+      }
+    );
 
-    if (!frontdoorUrl) {
-      return res.status(502).json({ error: "No frontdoor URL in response", detail: parsed });
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error("Salesforce API error:", response.status, data);
+      return res.status(502).json({ 
+        error: "Lightning Out 2.0 API failed", 
+        status: response.status,
+        detail: data 
+      });
     }
 
-    return res.status(200).json({ frontdoorUrl });
+    if (!data.frontdoorUrl) {
+      return res.status(502).json({ 
+        error: "No frontdoorUrl in response", 
+        detail: data 
+      });
+    }
 
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    return res.status(500).json({ error: err.message, stack: err.stack });
+    return res.status(200).json({ frontdoorUrl: data.frontdoorUrl });
+
+  } catch (error) {
+    console.error("Backend error:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
