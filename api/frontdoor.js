@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "https://isrir.github.io");
+  res.setHeader("Access-Control-Allow-Origin", "*"); // temporarily open for debugging
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -9,11 +9,18 @@ export default async function handler(req, res) {
     const CLIENT_ID     = process.env.SF_CLIENT_ID;
     const CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
 
+    // Debug: confirm env vars are loaded (never log secrets in production)
+    console.log("ENV CHECK:", {
+      SF_DOMAIN: !!SF_DOMAIN,
+      CLIENT_ID: !!CLIENT_ID,
+      CLIENT_SECRET: !!CLIENT_SECRET,
+    });
+
     if (!SF_DOMAIN || !CLIENT_ID || !CLIENT_SECRET) {
       return res.status(500).json({ error: "Missing environment variables" });
     }
 
-    // Step 1: Get token via Client Credentials (no username/password needed)
+    // Step 1: Client Credentials token
     const tokenRes = await fetch(
       `https://${SF_DOMAIN}/services/oauth2/token`,
       {
@@ -27,16 +34,17 @@ export default async function handler(req, res) {
       }
     );
 
+    const tokenBody = await tokenRes.text();
+    console.log("Token status:", tokenRes.status);
+    console.log("Token body:", tokenBody);
+
     if (!tokenRes.ok) {
-      const err = await tokenRes.text();
-      console.error("Token error:", err);
-      return res.status(502).json({ error: "Failed to get Salesforce token", detail: err });
+      return res.status(502).json({ error: "Token failed", detail: tokenBody });
     }
 
-    const { access_token, instance_url } = await tokenRes.json();
-    console.log("CC token obtained:", instance_url);
+    const { access_token, instance_url } = JSON.parse(tokenBody);
 
-    // Step 2: Exchange for LO2 frontdoor URL
+    // Step 2: lightningoutsingleaccess
     const singleAccessRes = await fetch(
       `${instance_url}/services/oauth2/lightningoutsingleaccess`,
       {
@@ -57,7 +65,7 @@ export default async function handler(req, res) {
 
     if (!singleAccessRes.ok) {
       return res.status(502).json({
-        error: "Failed to get LO2 frontdoor URL",
+        error: "lightningoutsingleaccess failed",
         status: singleAccessRes.status,
         detail: rawBody,
       });
@@ -74,6 +82,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error("Unexpected error:", err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message, stack: err.stack });
   }
 }
