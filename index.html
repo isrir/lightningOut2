@@ -53,6 +53,7 @@
             cursor: pointer;
             font-size: 14px;
             margin-right: 10px;
+            margin-bottom: 10px;
         }
 
         .host-controls button:hover {
@@ -140,19 +141,11 @@
             line-height: 1.4;
         }
 
-        /* Lightning Out 2.0 requires CSS custom properties (-- prefix) */
-        c-learning-program-form {
+        /* Lightning Out 2.0 component styling */
+        lightning-out-application {
             display: block;
             width: 100%;
             min-height: 400px;
-        }
-        
-        /* Force iframe visibility */
-        iframe {
-            display: block !important;
-            width: 100% !important;
-            min-height: 400px !important;
-            border: none !important;
         }
     </style>
 </head>
@@ -176,11 +169,11 @@
         <!-- Container for Lightning Out components -->
         <div id="lo-container"></div>
 
-        <!-- Host page controls to communicate with the embedded component -->
+        <!-- Host page controls -->
         <div class="host-controls">
             <h3 style="margin-bottom: 10px;">🎮 Host Page Controls</h3>
             <p style="margin-bottom: 10px; font-size: 14px; color: #666;">
-                Send messages or trigger actions in the embedded Salesforce component
+                Send messages to the embedded Salesforce component
             </p>
             <button id="sendMessageBtn">📨 Send Message to Component</button>
             <button id="triggerActionBtn">⚡ Trigger Component Action</button>
@@ -190,11 +183,6 @@
         <div id="hostMessageArea" class="message-area">
             <strong>📬 Message from Component:</strong>
             <div id="hostMessageContent"></div>
-        </div>
-
-        <div id="debugInfo" class="message-area">
-            <strong>🔧 Status:</strong>
-            <div id="statusContent"></div>
         </div>
 
         <div id="debug-info">
@@ -216,13 +204,12 @@
         const refreshBtn = document.getElementById('refreshBtn');
         const hostMessageArea = document.getElementById('hostMessageArea');
         const hostMessageContent = document.getElementById('hostMessageContent');
-        const statusContent = document.getElementById('statusContent');
         
         // State
         let debugMessages = [];
         let lightningOutApp = null;
         let learningProgramComponent = null;
-        let isInitialized = false;
+        let isAppReady = false;
 
         // Helper: Add debug message
         function addDebug(message, data = null) {
@@ -238,12 +225,6 @@
                 debugDiv.classList.add('show');
             }
             console.log(`[${timestamp}]`, message, data || '');
-            
-            // Update status
-            statusContent.innerHTML = `<small>[${timestamp}] ${message}</small><br>${statusContent.innerHTML}`;
-            if (statusContent.children.length > 5) {
-                statusContent.removeChild(statusContent.lastChild);
-            }
         }
 
         // Helper: Show error
@@ -255,9 +236,9 @@
         }
 
         // Helper: Show host message
-        function showHostMessage(message, type = 'info') {
+        function showHostMessage(message, isError = false) {
             hostMessageContent.innerHTML = `
-                <div style="padding: 10px; background: ${type === 'error' ? '#fee' : '#e8f0fe'}; border-radius: 4px;">
+                <div style="padding: 10px; background: ${isError ? '#fee' : '#e8f0fe'}; border-radius: 4px;">
                     <strong>${new Date().toLocaleTimeString()}:</strong> ${message}
                 </div>
             `;
@@ -294,58 +275,17 @@
             }
         }
 
-        // Set up event listener for messages FROM the component
-        function setupComponentEventListeners() {
-            if (!learningProgramComponent) {
-                addDebug('Component not found, cannot set up event listeners');
-                return;
-            }
-            
-            addDebug('Setting up event listeners on component');
-            
-            // Listen for custom events from the LWC component
-            // The component should dispatch events with bubbles: true, composed: true
-            learningProgramComponent.addEventListener('componentReady', (event) => {
-                addDebug('🎉 Component signaled it\'s ready', event.detail);
-                showHostMessage('Component is ready! ' + JSON.stringify(event.detail));
-            });
-            
-            learningProgramComponent.addEventListener('formSubmitted', (event) => {
-                addDebug('📝 Form submitted event received', event.detail);
-                showHostMessage(`Form submitted! Data: ${JSON.stringify(event.detail)}`);
-            });
-            
-            learningProgramComponent.addEventListener('formError', (event) => {
-                addDebug('❌ Form error event received', event.detail);
-                showHostMessage(`Error: ${event.detail?.message || 'Unknown error'}`, 'error');
-            });
-            
-            learningProgramComponent.addEventListener('dataLoaded', (event) => {
-                addDebug('📊 Data loaded event received', event.detail);
-                showHostMessage(`Data loaded: ${JSON.stringify(event.detail)}`);
-            });
-            
-            // Generic catch-all for any custom events
-            learningProgramComponent.addEventListener('message', (event) => {
-                if (event.detail) {
-                    addDebug('📨 Generic message event', event.detail);
-                }
-            });
-            
-            addDebug('Event listeners configured');
-        }
-
         // Send message TO the component
         function sendMessageToComponent(message) {
             if (!learningProgramComponent) {
                 addDebug('Cannot send message: component not found');
-                showHostMessage('Component not loaded yet. Please wait.', 'error');
+                showHostMessage('Component not loaded yet. Please wait.', true);
                 return;
             }
             
             addDebug(`Sending message to component: ${message}`);
             
-            // Create custom event with required properties
+            // Create custom event with required properties for cross-iframe communication
             const event = new CustomEvent('hostMessage', {
                 detail: {
                     message: message,
@@ -365,7 +305,7 @@
         function triggerComponentAction(action, data = {}) {
             if (!learningProgramComponent) {
                 addDebug('Cannot trigger action: component not found');
-                showHostMessage('Component not loaded yet. Please wait.', 'error');
+                showHostMessage('Component not loaded yet. Please wait.', true);
                 return;
             }
             
@@ -385,7 +325,7 @@
             showHostMessage(`Action "${action}" triggered`);
         }
 
-        // Main initialization following Salesforce Lightning Out 2.0 best practices
+        // Main initialization
         async function init() {
             addDebug('🚀 Initializing Lightning Out 2.0 App');
             
@@ -393,93 +333,73 @@
                 // Clear container
                 loContainer.innerHTML = '';
                 
-                // Step 1: Load the Lightning Out library dynamically
-                addDebug('Loading Lightning Out library...');
-                
-                // Check if already loaded
-                if (typeof $Lightning !== 'undefined') {
-                    addDebug('Lightning library already loaded');
-                } else {
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = 'https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js';
-                        script.async = true;
-                        script.onload = () => {
-                            addDebug('✅ Lightning Out library loaded');
-                            resolve();
-                        };
-                        script.onerror = () => {
-                            reject(new Error('Failed to load Lightning Out library'));
-                        };
-                        document.head.appendChild(script);
-                    });
-                }
-                
-                // Step 2: Get frontdoor URL for authentication
+                // Step 1: Get frontdoor URL FIRST (required for app initialization)
                 const frontdoorUrl = await getFrontdoorUrl();
                 addDebug(`Frontdoor URL obtained`);
                 
-                // Step 3: Create lightning-out-application element (required wrapper)
+                // Step 2: Create lightning-out-application element (wrapper)
                 lightningOutApp = document.createElement('lightning-out-application');
                 lightningOutApp.setAttribute('app-id', '1UsdN00000025rdSAA');
                 lightningOutApp.setAttribute('components', 'c-learning-program-form');
+                lightningOutApp.setAttribute('frontdoor-url', frontdoorUrl);
                 lightningOutApp.style.display = 'block';
                 lightningOutApp.style.width = '100%';
                 lightningOutApp.style.minHeight = '400px';
                 
-                addDebug('Created lightning-out-application element');
+                addDebug('Created lightning-out-application element with frontdoor-url');
                 
-                // Step 4: Create the actual component element
+                // Step 3: Create the component element as a CHILD of the app (not sibling!)
                 learningProgramComponent = document.createElement('c-learning-program-form');
                 
-                // Set component styles using CSS custom properties (-- prefix)
+                // Set component styles using CSS custom properties (only -- prefix works)
                 learningProgramComponent.setAttribute('style', `
                     --slds-c-card-color-background: #ffffff;
                     --slds-c-card-text-color: #1a1a1a;
                     --slds-c-card-color-border: #0070d2;
-                    --custom-primary-color: #0070d2;
-                    --custom-border-radius: 8px;
                 `);
-                
-                // Set any custom @api properties (if your component supports them)
-                // learningProgramComponent.setAttribute('program-id', '12345');
-                // learningProgramComponent.setAttribute('user-id', 'user123');
                 
                 addDebug('Created c-learning-program-form component');
                 
-                // Step 5: Set up event listeners BEFORE appending to DOM
-                setupComponentEventListeners();
+                // Step 4: Append component as child of the application (CRITICAL!)
+                lightningOutApp.appendChild(learningProgramComponent);
+                loContainer.appendChild(lightningOutApp);
                 
-                // Step 6: Set up lightning-out-application event listeners
+                addDebug('Component added as child of lightning-out-application');
+                
+                // Step 5: Set up event listeners on the component
+                learningProgramComponent.addEventListener('componentReady', (event) => {
+                    addDebug('✅ Component ready event', event.detail);
+                    showHostMessage('Component is ready!');
+                });
+                
+                learningProgramComponent.addEventListener('formSubmitted', (event) => {
+                    addDebug('📝 Form submitted', event.detail);
+                    showHostMessage(`Form submitted: ${JSON.stringify(event.detail)}`);
+                });
+                
+                learningProgramComponent.addEventListener('formError', (event) => {
+                    addDebug('❌ Form error', event.detail);
+                    showHostMessage(`Error: ${event.detail?.message}`, true);
+                });
+                
+                // Generic event listener for any custom events
+                learningProgramComponent.addEventListener('message', (event) => {
+                    if (event.detail) {
+                        addDebug('📨 Message from component', event.detail);
+                    }
+                });
+                
+                // Step 6: Set up app-level event listeners
                 lightningOutApp.addEventListener('lo.application.ready', () => {
-                    addDebug('✅ lo.application.ready - App loaded');
+                    addDebug('✅ lo.application.ready - App loaded successfully');
+                    isAppReady = true;
                     loadingDiv.style.display = 'none';
-                    isInitialized = true;
-                    
-                    // Set frontdoor URL after app is ready
-                    lightningOutApp.setAttribute('frontdoor-url', frontdoorUrl);
-                    addDebug('Frontdoor URL set on app');
+                    showHostMessage('Application loaded successfully!');
                 });
                 
                 lightningOutApp.addEventListener('lo.iframe.load', (event) => {
                     addDebug('📄 lo.iframe.load - Iframe loaded', { origin: event.detail });
                     loadingDiv.style.display = 'none';
-                    
-                    // Component should be ready now
-                    setTimeout(() => {
-                        addDebug('Component should be fully interactive now');
-                        showHostMessage('Component loaded successfully!');
-                        
-                        // Send initialization complete notification
-                        const initEvent = new CustomEvent('hostReady', {
-                            detail: { ready: true, timestamp: new Date().toISOString() },
-                            bubbles: true,
-                            composed: true
-                        });
-                        if (learningProgramComponent) {
-                            learningProgramComponent.dispatchEvent(initEvent);
-                        }
-                    }, 500);
                 });
                 
                 lightningOutApp.addEventListener('lo.component.ready', (event) => {
@@ -499,40 +419,40 @@
                     addDebug('❌ lo.iframe.error', event.detail);
                 });
                 
-                // Step 7: Append elements to DOM
-                loContainer.appendChild(lightningOutApp);
-                loContainer.appendChild(learningProgramComponent);
-                
-                addDebug('Elements appended to DOM');
-                
-                // Step 8: Set up host page button handlers
+                // Step 7: Set up button handlers
                 sendMessageBtn.onclick = () => {
                     const message = `Hello from host at ${new Date().toLocaleTimeString()}`;
                     sendMessageToComponent(message);
                 };
                 
                 triggerActionBtn.onclick = () => {
-                    triggerComponentAction('refresh', { timestamp: new Date().toISOString() });
+                    triggerComponentAction('customAction', { timestamp: new Date().toISOString() });
                 };
                 
                 refreshBtn.onclick = () => {
-                    triggerComponentAction('reload');
-                    showHostMessage('Component refresh triggered');
+                    triggerComponentAction('refresh');
+                    showHostMessage('Refresh triggered');
                 };
+                
+                addDebug('Initialization complete, waiting for iframe to load...');
                 
                 // Timeout fallback
                 setTimeout(() => {
                     if (loadingDiv.style.display !== 'none') {
-                        const iframes = document.querySelectorAll('iframe');
-                        if (iframes.length > 0) {
-                            addDebug(`Found ${iframes.length} iframe(s) - hiding loading`);
-                            loadingDiv.style.display = 'none';
+                        // Check if iframe exists in the shadow DOM
+                        if (lightningOutApp.shadowRoot) {
+                            const iframe = lightningOutApp.shadowRoot.querySelector('iframe');
+                            if (iframe) {
+                                addDebug('Iframe found in shadowRoot, hiding loading');
+                                loadingDiv.style.display = 'none';
+                            } else {
+                                addDebug('⚠️ No iframe found in shadowRoot after timeout');
+                            }
                         } else {
-                            addDebug('⚠️ No iframes found after timeout');
-                            // Don't show error, just keep waiting
+                            addDebug('⚠️ No shadowRoot available after timeout');
                         }
                     }
-                }, 20000);
+                }, 15000);
                 
             } catch (error) {
                 addDebug('❌ Initialization error', { message: error.message, stack: error.stack });
@@ -542,10 +462,25 @@
         
         // Start the application
         addDebug('Starting Lightning Out 2.0 application...');
-        init();
         
-        // Manual retry
-        window.retryLightning = () => location.reload();
+        // Ensure custom element is registered before initializing
+        if (customElements.get('lightning-out-application')) {
+            addDebug('lightning-out-application already registered');
+            init();
+        } else {
+            addDebug('Waiting for custom element registration...');
+            window.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                    if (customElements.get('lightning-out-application')) {
+                        addDebug('Custom element registered, starting init');
+                        init();
+                    } else {
+                        addDebug('ERROR: lightning-out-application not registered');
+                        showError('Lightning Out component not loaded properly');
+                    }
+                }, 100);
+            });
+        }
     </script>
 </body>
 </html>
