@@ -13,7 +13,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Salesforce Sans', Arial, sans-serif;
-            background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%);
+            background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -23,14 +23,14 @@
             margin: 0 auto;
         }
 
-        /* External page element 1 */
+        /* Header */
         .header {
             background: white;
             border-radius: 12px;
             padding: 30px;
             margin-bottom: 20px;
             text-align: center;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
 
         .header h1 {
@@ -44,15 +44,17 @@
             font-size: 16px;
         }
 
-        /* Component container - INCREASED HEIGHT */
+        /* Component container — NO fixed height, grows with content */
         .component-wrapper {
             background: white;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
             position: relative;
-            min-height: 780px;  /* INCREASED HEIGHT for container */
+            /* KEY FIX: do NOT set min-height or overflow here */
+            height: auto;
+            overflow: visible;
         }
 
         .component-title {
@@ -64,7 +66,7 @@
             border-bottom: 2px solid #0070d2;
         }
 
-        /* External page element 2 */
+        /* Footer */
         .footer {
             background: white;
             border-radius: 12px;
@@ -72,16 +74,17 @@
             text-align: center;
             color: #666;
             font-size: 14px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
 
-        /* Loading state */
+        /* Loading overlay */
         .loading-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
+            min-height: 200px;
             background: rgba(255,255,255,0.95);
             display: flex;
             align-items: center;
@@ -105,37 +108,7 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Required Lightning Out styles - INCREASED HEIGHT for iframe and component */
-        lightning-out-application {
-            display: block;
-            width: 100%;
-            min-height: 680px !important;  /* INCREASED HEIGHT */
-        }
-
-        iframe {
-            display: block !important;
-            width: 100% !important;
-            min-height: 680px !important;  /* INCREASED HEIGHT */
-            border: none !important;
-        }
-
-        /* Target the inner Lightning Web Component form and increase its height */
-        c-learning-program-form {
-            display: block;
-            width: 100%;
-            min-height: 680px !important;  /* INCREASED HEIGHT for component */
-        }
-
-        /* Style for the form elements inside Lightning component */
-        .lp-form {
-            min-height: 580px !important;
-            padding: 20px !important;
-        }
-
-        .lp-textarea {
-            min-height: 180px !important;  /* INCREASED height for textarea */
-        }
-
+        /* Status badge */
         .status-badge {
             display: inline-block;
             padding: 4px 12px;
@@ -145,145 +118,268 @@
             margin-top: 10px;
         }
 
-        .status-loading {
-            background: #fff3e0;
-            color: #e6a700;
+        .status-loading { background: #fff3e0; color: #e6a700; }
+        .status-ready   { background: #e8f5e9; color: #2e7d32; }
+        .status-error   { background: #ffebee; color: #c62828; }
+
+        /* ─── KEY FIXES FOR LIGHTNING OUT HEIGHT ─────────────────────────── */
+
+        /* Let the LWC application element grow with its content */
+        lightning-out-application {
+            display: block;
+            width: 100%;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
         }
 
-        .status-ready {
-            background: #e8f5e9;
-            color: #2e7d32;
+        /* Let the iframe size itself to its content — JS will set explicit px height */
+        iframe {
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: auto !important;
+            border: none !important;
+            overflow: hidden !important;
         }
 
-        .status-error {
-            background: #ffebee;
-            color: #c62828;
+        /* The custom element wrapper — no fixed height */
+        c-learning-program-form {
+            display: block;
+            width: 100%;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            /* SLDS token overrides to prevent internal scrolling */
+            --slds-c-card-sizing-height: auto;
         }
+        /* ─────────────────────────────────────────────────────────────────── */
     </style>
 </head>
 <body>
     <div class="container">
-
-        <!-- Component Container with embedded Lightning Out components -->
-        <div class="component-wrapper" style="position: relative;">
+        <!-- Component Container -->
+        <div class="component-wrapper">
             <div class="component-title">🎓 Enrollment Form</div>
-            
-            <!-- Loading overlay -->
+
+            <!-- Loading overlay — shown until lo.application.ready fires -->
             <div id="loadingOverlay" class="loading-overlay">
                 <div class="spinner"></div>
-                <div>Loading enrollment form...</div>
+                <div>Loading enrollment form…</div>
                 <div style="font-size: 12px; color: #888; margin-top: 8px;">Establishing secure connection</div>
             </div>
 
-            <!-- Lightning Out Library -->
+            <!-- Lightning Out library -->
             <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 
-            <!-- Lightning Out App Wrapper -->
-            <lightning-out-application 
+            <!-- Lightning Out application wrapper -->
+            <lightning-out-application
                 id="loApp"
                 app-id="1UsdN00000025rdSAA"
                 components="c-learning-program-form">
             </lightning-out-application>
 
-            <!-- Your Component - position determines render order -->
-            <c-learning-program-form 
+            <!-- Your LWC component -->
+            <c-learning-program-form
                 id="learningProgramComponent"
                 style="
                     --slds-c-card-color-background: #ffffff;
                     --slds-c-card-text-color: #1a1a1a;
                     --slds-c-card-color-border: #0070d2;
                     --custom-primary-color: #0070d2;
+                    --slds-c-card-sizing-height: auto;
                     display: block;
-                    min-height: 680px;
+                    height: auto;
+                    min-height: auto;
+                    overflow: visible;
                 ">
             </c-learning-program-form>
         </div>
 
-        
+        <!-- Footer -->
+        <div class="footer">
+            &copy; 2025 Creation Technology &mdash; Powered by Salesforce Lightning
+        </div>
+
     </div>
 
     <script>
-        // Get elements
-        const loApp = document.getElementById('loApp');
-        const component = document.getElementById('learningProgramComponent');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const statusBadge = document.getElementById('statusBadge');
+        const loApp            = document.getElementById('loApp');
+        const component        = document.getElementById('learningProgramComponent');
+        const loadingOverlay   = document.getElementById('loadingOverlay');
+        const statusBadge      = document.getElementById('statusBadge');
 
-        // Update status function
+        /* ── helpers ──────────────────────────────────────────────────── */
+
         function updateStatus(status, text) {
-            if (statusBadge) {
-                statusBadge.className = `status-badge status-${status}`;
-                statusBadge.innerHTML = text;
+            if (!statusBadge) return;
+            statusBadge.className = `status-badge status-${status}`;
+            statusBadge.innerHTML = text;
+        }
+
+        function showError(msg) {
+            updateStatus('error', '❌ Connection Error');
+            if (loadingOverlay) {
+                loadingOverlay.innerHTML = `
+                    <div style="color:#c23934;text-align:center;">
+                        <div style="font-size:24px;margin-bottom:12px;">⚠️</div>
+                        <div>${msg}</div>
+                        <div style="font-size:12px;margin-top:8px;">Please check your connection and try again.</div>
+                        <button onclick="location.reload()"
+                            style="margin-top:16px;padding:8px 24px;background:#0070d2;
+                                   color:white;border:none;border-radius:4px;cursor:pointer;">
+                            Retry
+                        </button>
+                    </div>`;
             }
         }
 
-        // Get frontdoor URL from your backend
-        async function getFrontdoorUrl() {
+        /* ── iframe auto-height ───────────────────────────────────────── */
+        /*
+         * Lightning Out renders your LWC inside a sandboxed <iframe>.
+         * The iframe does NOT auto-resize to its content — we must measure
+         * the inner document's scrollHeight and apply it as an explicit
+         * pixel height. We do this:
+         *   1. Once immediately after lo.application.ready
+         *   2. Via a ResizeObserver on the inner body (catches dynamic changes)
+         *   3. Via a short polling fallback for same-origin iframes
+         */
+        function autoSizeIframe(iframe) {
+            if (!iframe) return;
+
+            function applyHeight() {
+                try {
+                    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                    if (!doc || !doc.body) return;
+
+                    // Remove any overflow:hidden/auto on the inner body so scrollHeight is real
+                    doc.body.style.overflow  = 'visible';
+                    doc.documentElement.style.overflow = 'visible';
+
+                    const h = doc.body.scrollHeight || doc.documentElement.scrollHeight;
+                    if (h && h > 0) {
+                        iframe.style.height = h + 'px';
+                    }
+                } catch (e) {
+                    // Cross-origin: can't read contentDocument — fall back to a generous fixed height
+                    // Set a tall enough height so the full form is visible
+                    iframe.style.height = '600px';
+                }
+            }
+
+            // Immediate attempt
+            applyHeight();
+
+            // Retry after first paint
+            setTimeout(applyHeight, 300);
+            setTimeout(applyHeight, 800);
+            setTimeout(applyHeight, 1500);
+
+            // ResizeObserver on iframe element itself (catches layout shifts)
+            if (window.ResizeObserver) {
+                const ro = new ResizeObserver(() => applyHeight());
+                ro.observe(iframe);
+            }
+
+            // Also try observing the inner body if accessible (same-origin)
             try {
-                const response = await fetch('/api/guest-session');
-                const data = await response.json();
-                return data.frontdoorUrl;
-            } catch (error) {
-                console.error('Failed to get frontdoor URL:', error);
-                throw error;
+                const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                if (doc && doc.body && window.ResizeObserver) {
+                    const innerRo = new ResizeObserver(() => applyHeight());
+                    innerRo.observe(doc.body);
+                }
+            } catch (e) { /* cross-origin, skip */ }
+        }
+
+        /* ── shadow DOM style injection ──────────────────────────────── */
+        /*
+         * We can't target shadow root CSS from outside, but we CAN inject
+         * a <style> tag into the shadow root after the component renders.
+         * This removes the fixed min-height on .lp-form inside the LWC.
+         */
+        function patchShadowStyles() {
+            try {
+                const host = document.querySelector('c-learning-program-form');
+                if (!host || !host.shadowRoot) return;
+
+                // Check if already patched
+                if (host.shadowRoot.querySelector('#lp-height-patch')) return;
+
+                const style = document.createElement('style');
+                style.id = 'lp-height-patch';
+                style.textContent = `
+                    .lp-form {
+                        min-height: auto !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                        padding-bottom: 1.5rem !important;
+                    }
+                    .lp-textarea {
+                        min-height: 120px !important;
+                        height: auto !important;
+                    }
+                `;
+                host.shadowRoot.appendChild(style);
+                console.log('✅ Shadow DOM styles patched');
+            } catch (e) {
+                console.warn('Shadow DOM patch skipped:', e.message);
             }
         }
 
-        // Initialize Lightning Out
+        /* ── get frontdoor URL from backend ──────────────────────────── */
+        async function getFrontdoorUrl() {
+            const response = await fetch('/api/guest-session');
+            if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+            const data = await response.json();
+            return data.frontdoorUrl;
+        }
+
+        /* ── main init ────────────────────────────────────────────────── */
         async function init() {
             try {
                 const frontdoorUrl = await getFrontdoorUrl();
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
-                
-                console.log('Frontdoor URL set, initializing...');
+                console.log('Frontdoor URL set, waiting for Lightning Out…');
 
+                /* application ready — hide loader, size iframe */
                 loApp.addEventListener('lo.application.ready', () => {
-                    console.log('✅ Application ready');
+                    console.log('✅ lo.application.ready');
                     updateStatus('ready', '✅ Connected');
                     if (loadingOverlay) loadingOverlay.style.display = 'none';
-                    
-                    // After component loads, apply additional height styles to inner elements
-                    setTimeout(() => {
-                        const shadowRoots = document.querySelectorAll('c-learning-program-form');
-                        shadowRoots.forEach(el => {
-                            if (el.shadowRoot) {
-                                const form = el.shadowRoot.querySelector('.lp-form');
-                                if (form) {
-                                    form.style.minHeight = '580px';
-                                    const textarea = form.querySelector('.lp-textarea');
-                                    if (textarea) {
-                                        textarea.style.minHeight = '180px';
-                                    }
-                                }
-                            }
-                        });
-                    }, 500);
+
+                    // Find and auto-size the iframe Lightning Out created
+                    const iframe = loApp.querySelector('iframe');
+                    autoSizeIframe(iframe);
+
+                    // Patch shadow DOM height styles after a short delay
+                    setTimeout(patchShadowStyles, 400);
+                    setTimeout(patchShadowStyles, 1000);
                 });
 
+                /* iframe loaded (fires before ready in some versions) */
                 loApp.addEventListener('lo.iframe.load', (event) => {
-                    console.log('✅ Iframe loaded from:', event.detail);
+                    console.log('✅ lo.iframe.load:', event.detail);
                     if (loadingOverlay) loadingOverlay.style.display = 'none';
+
+                    const iframe = loApp.querySelector('iframe');
+                    autoSizeIframe(iframe);
                 });
 
+                /* component ready */
                 loApp.addEventListener('lo.component.ready', () => {
-                    console.log('✅ Component ready');
+                    console.log('✅ lo.component.ready');
+                    const iframe = loApp.querySelector('iframe');
+                    autoSizeIframe(iframe);
+                    setTimeout(patchShadowStyles, 200);
                 });
 
+                /* error */
                 loApp.addEventListener('lo.application.error', (event) => {
-                    console.error('❌ Application error:', event.detail);
-                    updateStatus('error', '❌ Connection Error');
-                    if (loadingOverlay) {
-                        loadingOverlay.innerHTML = `
-                            <div style="color: #c23934; text-align: center;">
-                                <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
-                                <div>Failed to load enrollment form</div>
-                                <div style="font-size: 12px; margin-top: 8px;">Please check your connection and try again</div>
-                                <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 24px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
-                            </div>
-                        `;
-                    }
+                    console.error('❌ lo.application.error:', event.detail);
+                    showError('Failed to load enrollment form.');
                 });
 
+                /* form events from the LWC */
                 if (component) {
                     component.addEventListener('formSubmitted', (event) => {
                         console.log('Form submitted:', event.detail);
@@ -297,21 +393,11 @@
 
             } catch (error) {
                 console.error('Initialization error:', error);
-                updateStatus('error', '❌ Failed to Connect');
-                if (loadingOverlay) {
-                    loadingOverlay.innerHTML = `
-                        <div style="color: #c23934; text-align: center;">
-                            <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
-                            <div>Failed to connect to Salesforce</div>
-                            <div style="font-size: 12px; margin-top: 8px;">${error.message}</div>
-                            <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 24px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
-                        </div>
-                    `;
-                }
+                showError(`Failed to connect to Salesforce: ${error.message}`);
             }
         }
 
-        // Wait for custom element to be registered
+        /* ── wait for custom element registration, then init ─────────── */
         if (customElements.get('lightning-out-application')) {
             init();
         } else {
@@ -321,6 +407,14 @@
                     init();
                 }
             }, 100);
+
+            // Timeout after 15 s if the script never loads
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                if (!customElements.get('lightning-out-application')) {
+                    showError('Lightning Out script failed to load. Check your Salesforce org URL.');
+                }
+            }, 15000);
         }
     </script>
 </body>
