@@ -23,8 +23,7 @@ async function initLightningOut() {
   const code = urlParams.get('code');
   
   if (!code) {
-    // No token yet - redirect to Salesforce login
-    const clientId = 'YOUR_ECA_CLIENT_ID'; // Must be an External Client App!
+    const clientId = '3MVG9GBhY6wQjl2uGwI77CbrWiUlVtg4LnMmf3oNCsQWxBFyRqGqfTuBMKo9spG0P8MiVkIcMLWnHt0nux63e';
     const redirectUri = window.location.origin + window.location.pathname;
     const authUrl = `https://creationtechnology4.my.salesforce.com/services/oauth2/authorize?` +
       `response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}` +
