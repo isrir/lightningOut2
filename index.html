@@ -139,7 +139,7 @@
             background: #5a67d8;
         }
 
-        /* CRITICAL FIX: Ensure Lightning Out component is visible */
+        /* CRITICAL FIX: Override inline display:none */
         lightning-out-application {
             display: block !important;
             width: 100% !important;
@@ -156,12 +156,6 @@
             height: auto !important;
             border: none !important;
             display: block !important;
-        }
-        
-        /* Debug helper - add a temporary border to see the component */
-        .form-container lightning-out-application {
-            border: 2px solid #667eea20;
-            border-radius: 16px;
         }
     </style>
     <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
@@ -213,6 +207,28 @@
         function hideError() {
             errorContainer.style.display = 'none';
             errorDetails.style.display = 'none';
+        }
+
+        // Force override inline styles
+        function forceShowComponent() {
+            if (loApp) {
+                // Remove inline style attribute completely
+                loApp.removeAttribute('style');
+                // Ensure it's visible
+                loApp.style.display = 'block';
+                loApp.style.width = '100%';
+                loApp.style.minHeight = '550px';
+                
+                // Also fix iframe inside
+                const iframe = loApp.querySelector('iframe');
+                if (iframe) {
+                    iframe.style.display = 'block';
+                    iframe.style.width = '100%';
+                    iframe.style.height = '550px';
+                }
+                
+                console.log('✅ Component visibility forced');
+            }
         }
 
         async function getFrontdoorUrl() {
@@ -292,17 +308,11 @@
                     clearTimeout(readyTimeout);
                     loadingDiv.style.display = 'none';
                     
-                    // Force visibility after ready
+                    // Force component to be visible
                     setTimeout(() => {
-                        const iframe = loApp.querySelector('iframe');
-                        if (iframe) {
-                            console.log('Iframe found, ensuring visibility');
-                            iframe.style.display = 'block';
-                            iframe.style.height = '550px';
-                            iframe.style.width = '100%';
-                        }
+                        forceShowComponent();
                         console.log('Component should now be visible');
-                    }, 500);
+                    }, 100);
                 });
                 
                 loApp.addEventListener('lo.application.error', (event) => {
@@ -326,19 +336,25 @@
         // Start the initialization when page loads
         document.addEventListener('DOMContentLoaded', initLightningOut);
         
-        // Additional visibility check
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const iframe = loApp?.querySelector('iframe');
-                if (iframe) {
-                    console.log('Final visibility check - iframe dimensions:', {
-                        width: iframe.offsetWidth,
-                        height: iframe.offsetHeight,
-                        display: window.getComputedStyle(iframe).display
-                    });
+        // Extra safety: watch for style changes and fix them
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                    const style = loApp.getAttribute('style');
+                    if (style && style.includes('display: none')) {
+                        console.log('Detected display:none, forcing visibility');
+                        forceShowComponent();
+                    }
                 }
-            }, 2000);
+            });
         });
+        
+        // Start observing once component exists
+        setTimeout(() => {
+            if (loApp) {
+                observer.observe(loApp, { attributes: true });
+            }
+        }, 1000);
     </script>
 </body>
 </html>
