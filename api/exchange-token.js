@@ -37,7 +37,8 @@ export default async function handler(req, res) {
         client_id: clientId,
         client_secret: clientSecret,
         redirect_uri: redirectUri,
-      }),
+        code_verifier: codeVerifier  // ← CRITICAL: Add this line
+      })
     });
 
     const data = await response.json();
