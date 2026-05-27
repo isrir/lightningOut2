@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learning Program Enrollment</title>
     <style>
-        /* Minimal CSS only to ensure Lightning Out is visible */
+        /* Minimal CSS for Lightning Out component visibility */
         lightning-out-application {
             display: block !important;
             width: 100% !important;
@@ -22,7 +22,7 @@
 </head>
 <body>
     <div id="loading">Loading enrollment form...</div>
-    <div id="error-container" style="display:none; color:red;">
+    <div id="error-container" style="display:none; color:red; padding:20px;">
         <p id="error-message"></p>
         <button onclick="location.reload()">Retry</button>
     </div>
@@ -90,5 +90,4 @@
         init();
     </script>
 </body>
-
 </html>
