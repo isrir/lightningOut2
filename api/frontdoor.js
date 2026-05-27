@@ -1,5 +1,8 @@
+// api/frontdoor.js
+// Get frontdoor URL using an existing access token
+
 export default async function handler(req, res) {
-  // CORS headers
+  // Enable CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -10,7 +13,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Frontend must send the OAuth token (obtained via user login)
     const { accessToken, instanceUrl } = req.body;
     
     if (!accessToken || !instanceUrl) {
@@ -19,19 +21,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // Call the correct LO2 API endpoint
     const response = await fetch(
       `${instanceUrl}/services/lightning/ui/2.0/frontdoor`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          // Optional: specify which app or component to load
-          // appId: "1UsdN00000025rdSAA"
-        })
+        body: JSON.stringify({})
       }
     );
 
