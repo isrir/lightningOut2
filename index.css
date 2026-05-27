@@ -23,6 +23,7 @@ body {
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     position: relative;
     height: auto;
+    min-height: 900px;
     overflow: visible;
 }
 
