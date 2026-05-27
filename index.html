@@ -85,6 +85,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             display: none;
+            min-width: 300px;
         }
 
         .error-icon {
@@ -102,6 +103,19 @@
         .error-message {
             color: #6b7280;
             margin-bottom: 20px;
+            word-break: break-word;
+        }
+
+        .error-details {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-family: monospace;
+            margin-bottom: 20px;
+            text-align: left;
+            max-height: 200px;
+            overflow: auto;
         }
 
         .retry-btn {
@@ -125,7 +139,6 @@
             min-height: 500px;
         }
 
-        /* Hide component while loading */
         lightning-out-application:not([frontdoor-url]) {
             visibility: hidden;
         }
@@ -147,6 +160,7 @@
                 <div class="error-icon">⚠️</div>
                 <div class="error-title">Unable to Load Form</div>
                 <div class="error-message" id="error-message"></div>
+                <div class="error-details" id="error-details" style="display:none;"></div>
                 <button class="retry-btn" onclick="location.reload()">Try Again</button>
             </div>
             <lightning-out-application
@@ -160,27 +174,45 @@
         async function initGuestLightningOut() {
             const loadingDiv = document.getElementById('loading');
             const errorDiv = document.getElementById('error-container');
+            const errorMessage = document.getElementById('error-message');
+            const errorDetails = document.getElementById('error-details');
             const app = document.querySelector('lightning-out-application');
             
             try {
                 console.log('🔐 Fetching guest session from Salesforce...');
+                console.log('API URL:', '/api/guest-session');
                 
                 // Call the guest session endpoint
                 const response = await fetch('/api/guest-session');
                 
+                console.log('Response status:', response.status);
+                console.log('Response OK:', response.ok);
+                
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+                    let errorText = await response.text();
+                    console.log('Error response body:', errorText);
+                    
+                    let errorJson;
+                    try {
+                        errorJson = JSON.parse(errorText);
+                    } catch(e) {
+                        errorJson = { error: errorText };
+                    }
+                    
+                    throw new Error(errorJson.error || errorJson.message || `HTTP ${response.status}: ${response.statusText}`);
                 }
                 
-                const { frontdoorUrl, instanceUrl } = await response.json();
+                const data = await response.json();
+                console.log('Response data keys:', Object.keys(data));
+                
+                const { frontdoorUrl, instanceUrl } = data;
                 
                 if (!frontdoorUrl) {
                     throw new Error('No frontdoor URL received from server');
                 }
                 
                 console.log('✅ Session obtained, initializing Lightning Out...');
-                console.log('Instance URL:', instanceUrl);
+                console.log('Frontdoor URL preview:', frontdoorUrl.substring(0, 100) + '...');
                 
                 // Set the frontdoor URL on the component
                 app.setAttribute('frontdoor-url', frontdoorUrl);
@@ -195,28 +227,42 @@
                 app.addEventListener('lo.application.error', (e) => {
                     console.error('❌ Lightning Out error:', e.detail);
                     loadingDiv.style.display = 'none';
-                    showError(e.detail?.message || 'Failed to load Salesforce component');
+                    showError(e.detail?.message || 'Failed to load Salesforce component', JSON.stringify(e.detail, null, 2));
                 });
                 
                 // Set a timeout in case the component never loads
-                setTimeout(() => {
+                const timeoutId = setTimeout(() => {
                     if (loadingDiv.style.display !== 'none') {
                         loadingDiv.style.display = 'none';
-                        showError('Component loading timeout. Please check your Salesforce configuration.');
+                        showError('Component loading timeout. Please check your Salesforce configuration.', 
+                            'The Lightning Out component did not load within 30 seconds.');
                     }
                 }, 30000);
+                
+                // Clear timeout if component loads
+                app.addEventListener('lo.application.ready', () => {
+                    clearTimeout(timeoutId);
+                });
                 
             } catch (error) {
                 console.error('❌ Initialization error:', error);
                 loadingDiv.style.display = 'none';
-                showError(error.message || 'Failed to connect to enrollment system');
+                showError(error.message || 'Failed to connect to enrollment system', error.stack);
             }
         }
         
-        function showError(message) {
+        function showError(message, details) {
             const errorDiv = document.getElementById('error-container');
             const errorMessage = document.getElementById('error-message');
+            const errorDetails = document.getElementById('error-details');
+            
             errorMessage.textContent = message;
+            
+            if (details) {
+                errorDetails.textContent = details;
+                errorDetails.style.display = 'block';
+            }
+            
             errorDiv.style.display = 'block';
         }
         
