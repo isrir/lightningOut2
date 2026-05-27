@@ -3,358 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enrollment Form - Learning Program</title>
+    <title>Learning Program Enrollment</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            padding: 40px 20px;
-            color: white;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .form-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-            overflow: hidden;
-            min-height: 600px;
-            position: relative;
-        }
-
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 10;
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        #error-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 10;
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            display: none;
-            min-width: 300px;
-        }
-
-        .error-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-        }
-
-        .error-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #dc2626;
-            margin-bottom: 10px;
-        }
-
-        .error-message {
-            color: #6b7280;
-            margin-bottom: 20px;
-            word-break: break-word;
-        }
-
-        .error-details {
-            background: #f3f4f6;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            font-family: monospace;
-            margin-bottom: 20px;
-            text-align: left;
-            max-height: 200px;
-            overflow: auto;
-            display: none;
-        }
-
-        .retry-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background 0.3s;
-        }
-
-        .retry-btn:hover {
-            background: #5a67d8;
-        }
-
-        /* CRITICAL FIX: Override inline display:none */
+        /* Minimal CSS only to ensure Lightning Out is visible */
         lightning-out-application {
             display: block !important;
             width: 100% !important;
-            min-height: 550px !important;
-            height: auto !important;
-            visibility: visible !important;
-            opacity: 1 !important;
+            min-height: 500px !important;
         }
         
-        /* Ensure the iframe inside is visible */
         lightning-out-application iframe {
             width: 100% !important;
-            min-height: 550px !important;
-            height: auto !important;
+            min-height: 500px !important;
             border: none !important;
-            display: block !important;
         }
     </style>
     <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📚 Learning Program Enrollment</h1>
-            <p>Please fill out the form below to enroll in our learning program</p>
-        </div>
-        <div class="form-container">
-            <div id="loading">
-                <div class="spinner"></div>
-                <p>Loading enrollment form...</p>
-                <p style="font-size: 12px; color: #666; margin-top: 10px;">Establishing secure connection</p>
-            </div>
-            <div id="error-container">
-                <div class="error-icon">⚠️</div>
-                <div class="error-title">Unable to Load Form</div>
-                <div class="error-message" id="error-message"></div>
-                <div class="error-details" id="error-details"></div>
-                <button class="retry-btn" onclick="location.reload()">Try Again</button>
-            </div>
-            <lightning-out-application
-                id="loApplication"
-                app-id="1UsdN00000025rdSAA"
-                components="c-learning-program-form"
-            ></lightning-out-application>
-        </div>
+    <div id="loading">Loading enrollment form...</div>
+    <div id="error-container" style="display:none; color:red;">
+        <p id="error-message"></p>
+        <button onclick="location.reload()">Retry</button>
     </div>
+    
+    <lightning-out-application
+        id="loApplication"
+        app-id="1UsdN00000025rdSAA"
+        components="c-learning-program-form"
+    ></lightning-out-application>
 
     <script>
         const loadingDiv = document.getElementById('loading');
         const errorContainer = document.getElementById('error-container');
         const errorMessage = document.getElementById('error-message');
-        const errorDetails = document.getElementById('error-details');
         const loApp = document.getElementById('loApplication');
 
-        function showError(message, detailsText = null) {
+        function showError(msg) {
             loadingDiv.style.display = 'none';
-            errorMessage.textContent = message;
-            if (detailsText) {
-                errorDetails.textContent = detailsText;
-                errorDetails.style.display = 'block';
-            }
+            errorMessage.textContent = msg;
             errorContainer.style.display = 'block';
         }
 
-        function hideError() {
-            errorContainer.style.display = 'none';
-            errorDetails.style.display = 'none';
-        }
-
-        // Force override inline styles
         function forceShowComponent() {
             if (loApp) {
-                // Remove inline style attribute completely
                 loApp.removeAttribute('style');
-                // Ensure it's visible
                 loApp.style.display = 'block';
-                loApp.style.width = '100%';
-                loApp.style.minHeight = '550px';
-                
-                // Also fix iframe inside
                 const iframe = loApp.querySelector('iframe');
                 if (iframe) {
                     iframe.style.display = 'block';
-                    iframe.style.width = '100%';
-                    iframe.style.height = '550px';
                 }
-                
-                console.log('✅ Component visibility forced');
             }
         }
 
         async function getFrontdoorUrl() {
-            // Try JWT named user endpoint first
             try {
-                console.log('Attempting JWT authentication...');
-                const response = await fetch('/api/jwt', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.frontdoorUrl) {
-                        console.log('✅ JWT auth successful');
-                        return data.frontdoorUrl;
-                    }
-                }
-                throw new Error('JWT auth failed');
-            } catch (jwtError) {
-                console.warn('JWT auth failed, trying guest session:', jwtError.message);
-                
-                // Fallback to guest session
-                try {
-                    const response = await fetch('/api/guest-session', {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.frontdoorUrl) {
-                            console.log('✅ Guest session obtained');
-                            return data.frontdoorUrl;
-                        }
-                    }
-                    throw new Error('Guest session failed');
-                } catch (guestError) {
-                    throw new Error('Unable to authenticate with Salesforce. Please check your backend API endpoints.');
-                }
+                const response = await fetch('/api/guest-session');
+                if (!response.ok) throw new Error('Guest session failed');
+                const data = await response.json();
+                if (!data.frontdoorUrl) throw new Error('No frontdoor URL');
+                return data.frontdoorUrl;
+            } catch (error) {
+                throw new Error('Unable to authenticate: ' + error.message);
             }
         }
 
-        async function initLightningOut() {
+        async function init() {
             try {
-                hideError();
-                loadingDiv.style.display = 'block';
-                
-                // Get frontdoor URL from your backend
                 const frontdoorUrl = await getFrontdoorUrl();
-                
-                if (!frontdoorUrl) {
-                    throw new Error('No frontdoor URL received from server');
-                }
-                
-                console.log('Setting frontdoor-url:', frontdoorUrl);
-                
-                // Set the frontdoor-url attribute
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
                 
-                // Set up event listeners for Lightning Out
-                let readyTimeout = setTimeout(() => {
-                    if (loadingDiv.style.display !== 'none') {
-                        showError(
-                            'Form loading timeout',
-                            'The Salesforce Lightning Out component did not load within 30 seconds.'
-                        );
-                    }
-                }, 30000);
-                
                 loApp.addEventListener('lo.application.ready', () => {
-                    console.log('✅ Lightning Out application ready');
-                    clearTimeout(readyTimeout);
                     loadingDiv.style.display = 'none';
-                    
-                    // Force component to be visible
-                    setTimeout(() => {
-                        forceShowComponent();
-                        console.log('Component should now be visible');
-                    }, 100);
+                    forceShowComponent();
                 });
                 
-                loApp.addEventListener('lo.application.error', (event) => {
-                    console.error('❌ Lightning Out error:', event.detail);
-                    clearTimeout(readyTimeout);
-                    showError(
-                        'Lightning Out Error',
-                        event.detail?.message || JSON.stringify(event.detail, null, 2)
-                    );
+                loApp.addEventListener('lo.application.error', (e) => {
+                    showError(e.detail?.message || 'Lightning Out error');
                 });
                 
             } catch (error) {
-                console.error('Initialization error:', error);
-                showError(
-                    'Failed to initialize enrollment form',
-                    error.message
-                );
+                showError(error.message);
             }
         }
         
-        // Start the initialization when page loads
-        document.addEventListener('DOMContentLoaded', initLightningOut);
-        
-        // Extra safety: watch for style changes and fix them
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    const style = loApp.getAttribute('style');
-                    if (style && style.includes('display: none')) {
-                        console.log('Detected display:none, forcing visibility');
-                        forceShowComponent();
-                    }
-                }
-            });
-        });
-        
-        // Start observing once component exists
-        setTimeout(() => {
-            if (loApp) {
-                observer.observe(loApp, { attributes: true });
-            }
-        }, 1000);
+        init();
     </script>
 </body>
 </html>
