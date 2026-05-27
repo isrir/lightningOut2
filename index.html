@@ -5,88 +5,117 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learning Program Enrollment</title>
     <style>
-        /* Minimal CSS for Lightning Out component visibility */
+        /* Minimal CSS to ensure component visibility */
         lightning-out-application {
             display: block !important;
             width: 100% !important;
-            min-height: 500px !important;
+            min-height: 550px !important;
         }
         
         lightning-out-application iframe {
             width: 100% !important;
-            min-height: 500px !important;
+            min-height: 550px !important;
             border: none !important;
         }
     </style>
     <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 </head>
 <body>
-    <div id="loading">Loading enrollment form...</div>
-    <div id="error-container" style="display:none; color:red; padding:20px;">
-        <p id="error-message"></p>
-        <button onclick="location.reload()">Retry</button>
+    <!-- Loading indicator -->
+    <div id="loading" style="text-align: center; padding: 40px; font-family: Arial;">
+        <div>⏳ Loading enrollment form...</div>
+        <div style="font-size: 12px; color: #666; margin-top: 10px;">Establishing secure connection</div>
     </div>
     
-    <lightning-out-application
-        id="loApplication"
-        app-id="1UsdN00000025rdSAA"
-        components="c-learning-program-form"
-    ></lightning-out-application>
+    <!-- Error container -->
+    <div id="error-container" style="display: none; text-align: center; padding: 40px; color: red;">
+        <p id="error-message"></p>
+        <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px;">Retry</button>
+    </div>
+    
+    <!-- Lightning Out Application - THIS IS ALL YOU NEED -->
+    <lightning-out-application 
+        id="loApp"
+        app-id="1UsdN00000025rdSAA" 
+        components="c-learning-program-form">
+    </lightning-out-application>
 
     <script>
+        const loApp = document.getElementById('loApp');
         const loadingDiv = document.getElementById('loading');
         const errorContainer = document.getElementById('error-container');
         const errorMessage = document.getElementById('error-message');
-        const loApp = document.getElementById('loApplication');
-
+        
         function showError(msg) {
             loadingDiv.style.display = 'none';
             errorMessage.textContent = msg;
             errorContainer.style.display = 'block';
         }
-
-        function forceShowComponent() {
+        
+        // Force the component to be visible (fixes Salesforce inline display:none issue)
+        function forceVisibility() {
             if (loApp) {
-                loApp.removeAttribute('style');
                 loApp.style.display = 'block';
+                loApp.style.width = '100%';
+                loApp.style.minHeight = '550px';
                 const iframe = loApp.querySelector('iframe');
                 if (iframe) {
                     iframe.style.display = 'block';
+                    iframe.style.width = '100%';
+                    iframe.style.height = '550px';
                 }
             }
         }
-
+        
         async function getFrontdoorUrl() {
             try {
+                // Try to get frontdoor URL from your backend
                 const response = await fetch('/api/guest-session');
-                if (!response.ok) throw new Error('Guest session failed');
+                if (!response.ok) throw new Error('Failed to get session');
                 const data = await response.json();
-                if (!data.frontdoorUrl) throw new Error('No frontdoor URL');
+                if (!data.frontdoorUrl) throw new Error('No frontdoor URL received');
                 return data.frontdoorUrl;
             } catch (error) {
-                throw new Error('Unable to authenticate: ' + error.message);
+                console.error('Session error:', error);
+                throw new Error('Unable to authenticate with Salesforce: ' + error.message);
             }
         }
-
+        
         async function init() {
             try {
+                // Get frontdoor URL from your API
                 const frontdoorUrl = await getFrontdoorUrl();
+                console.log('Setting frontdoor URL');
+                
+                // Set the attribute to authenticate
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
                 
+                // Listen for ready event
                 loApp.addEventListener('lo.application.ready', () => {
+                    console.log('✅ Component ready');
                     loadingDiv.style.display = 'none';
-                    forceShowComponent();
+                    forceVisibility();
                 });
                 
-                loApp.addEventListener('lo.application.error', (e) => {
-                    showError(e.detail?.message || 'Lightning Out error');
+                // Listen for errors
+                loApp.addEventListener('lo.application.error', (event) => {
+                    console.error('Component error:', event.detail);
+                    showError(event.detail?.message || 'Failed to load component');
                 });
+                
+                // Timeout fallback
+                setTimeout(() => {
+                    if (loadingDiv.style.display !== 'none') {
+                        showError('Loading timeout - please check your connection and refresh');
+                    }
+                }, 30000);
                 
             } catch (error) {
                 showError(error.message);
             }
         }
         
+        // Start the application
         init();
     </script>
 </body>
