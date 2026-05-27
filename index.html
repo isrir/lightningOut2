@@ -121,141 +121,14 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Controls Panel */
-        .controls-panel {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-
-        .controls-panel h3 {
-            font-size: 16px;
-            margin-bottom: 16px;
-            color: #1a1a1a;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        button {
-            background: #0070d2;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        button:hover:not(:disabled) {
-            background: #005fb2;
-            transform: translateY(-1px);
-        }
-
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        button.danger {
-            background: #c23934;
-        }
-
-        button.danger:hover:not(:disabled) {
-            background: #a12b27;
-        }
-
-        button.success {
-            background: #2e844a;
-        }
-
-        button.success:hover:not(:disabled) {
-            background: #1e6b3a;
-        }
-
-        /* Message Area */
-        .message-area {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 16px;
-            margin-top: 16px;
-            display: none;
-            border-left: 3px solid #0070d2;
-        }
-
-        .message-area.show {
-            display: block;
-        }
-
-        .message-area.error {
-            border-left-color: #c23934;
-            background: #ffebee;
-        }
-
-        .message-area.success {
-            border-left-color: #2e844a;
-            background: #e8f5e9;
-        }
-
-        .message-title {
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .message-content {
-            font-size: 13px;
-            color: #555;
-            word-break: break-word;
-        }
-
-        /* Debug Panel */
-        .debug-panel {
-            background: #1a1a1a;
-            color: #00ff00;
-            border-radius: 8px;
-            padding: 16px;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .debug-panel h4 {
-            color: #fff;
-            margin-bottom: 12px;
-            font-size: 12px;
-        }
-
-        .debug-content {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            line-height: 1.4;
-        }
-
         /* Responsive */
         @media (max-width: 768px) {
             .container {
                 padding: 0;
             }
             
-            .header, .component-container, .controls-panel {
+            .header, .component-container {
                 padding: 16px;
-            }
-            
-            .button-group {
-                flex-direction: column;
-            }
-            
-            button {
-                width: 100%;
             }
         }
 
@@ -294,7 +167,6 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     <!-- Salesforce Lightning Out Library -->
@@ -305,46 +177,10 @@
         const loContainer = document.getElementById('lo-container');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const statusBadge = document.getElementById('statusBadge');
-        const debugContent = document.getElementById('debugContent');
-        const messageArea = document.getElementById('messageArea');
-        const messageContent = document.getElementById('messageContent');
-        const sendMessageBtn = document.getElementById('sendMessageBtn');
-        const refreshBtn = document.getElementById('refreshBtn');
-        const getDataBtn = document.getElementById('getDataBtn');
-        const clearLogsBtn = document.getElementById('clearLogsBtn');
         
         // State
-        let debugMessages = [];
         let lightningOutApp = null;
         let component = null;
-        let isReady = false;
-
-        // Helper: Add debug message
-        function addDebug(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : '📝';
-            debugMessages.unshift(`[${timestamp}] ${icon} ${message}`);
-            if (debugMessages.length > 50) debugMessages.pop();
-            debugContent.innerHTML = debugMessages.join('\n');
-            console.log(`[${timestamp}]`, message);
-        }
-
-        // Helper: Show message
-        function showMessage(message, isError = false) {
-            messageContent.innerHTML = `
-                <strong>${new Date().toLocaleTimeString()}:</strong><br>
-                ${message}
-            `;
-            messageArea.classList.add('show');
-            if (isError) {
-                messageArea.classList.add('error');
-            } else {
-                messageArea.classList.remove('error');
-            }
-            setTimeout(() => {
-                messageArea.classList.remove('show');
-            }, 5000);
-        }
 
         // Helper: Update status badge
         function updateStatus(status, text) {
@@ -352,26 +188,19 @@
             statusBadge.innerHTML = text;
         }
 
-        // Helper: Enable/disable controls
-        function setControlsEnabled(enabled) {
-            sendMessageBtn.disabled = !enabled;
-            refreshBtn.disabled = !enabled;
-            getDataBtn.disabled = !enabled;
-        }
-
         // Helper: Get frontdoor URL from API
         async function getFrontdoorUrl() {
-            addDebug('Fetching frontdoor URL from /api/guest-session');
+            console.log('Fetching frontdoor URL from /api/guest-session');
             try {
                 const response = await fetch('/api/guest-session');
-                addDebug(`API Response status: ${response.status}`);
+                console.log(`API Response status: ${response.status}`);
                 
                 if (!response.ok) {
                     throw new Error(`API returned ${response.status}`);
                 }
                 
                 const data = await response.json();
-                addDebug('API Response received', 'success');
+                console.log('API Response received');
                 
                 if (!data.frontdoorUrl) {
                     throw new Error('No frontdoorUrl in API response');
@@ -379,77 +208,9 @@
                 
                 return data.frontdoorUrl;
             } catch (error) {
-                addDebug(`Failed to get frontdoor URL: ${error.message}`, 'error');
+                console.error(`Failed to get frontdoor URL: ${error.message}`);
                 throw error;
             }
-        }
-
-        // Send message to component
-        function sendMessage() {
-            if (!component) {
-                showMessage('Component not loaded yet', true);
-                return;
-            }
-            
-            const message = `Hello from host page at ${new Date().toLocaleTimeString()}`;
-            addDebug(`Sending message to component: ${message}`);
-            
-            const event = new CustomEvent('hostMessage', {
-                detail: {
-                    message: message,
-                    timestamp: new Date().toISOString(),
-                    source: 'host-page'
-                },
-                bubbles: true,
-                composed: true
-            });
-            
-            component.dispatchEvent(event);
-            showMessage(`Message sent: "${message}"`);
-        }
-
-        // Refresh component
-        function refreshComponent() {
-            if (!component) {
-                showMessage('Component not loaded yet', true);
-                return;
-            }
-            
-            addDebug('Sending refresh request to component');
-            
-            const event = new CustomEvent('refresh', {
-                detail: {
-                    timestamp: new Date().toISOString(),
-                    source: 'host-page'
-                },
-                bubbles: true,
-                composed: true
-            });
-            
-            component.dispatchEvent(event);
-            showMessage('Refresh request sent to component');
-        }
-
-        // Request data from component
-        function requestData() {
-            if (!component) {
-                showMessage('Component not loaded yet', true);
-                return;
-            }
-            
-            addDebug('Requesting data from component');
-            
-            const event = new CustomEvent('requestData', {
-                detail: {
-                    requestId: Date.now().toString(),
-                    timestamp: new Date().toISOString()
-                },
-                bubbles: true,
-                composed: true
-            });
-            
-            component.dispatchEvent(event);
-            showMessage('Data request sent to component');
         }
 
         // Force iframe visibility
@@ -462,7 +223,7 @@
                         iframe.style.width = '100%';
                         iframe.style.minHeight = '500px';
                         iframe.style.visibility = 'visible';
-                        addDebug('Iframe visibility fixed');
+                        console.log('Iframe visibility fixed');
                     }
                 }
             }, 100);
@@ -470,7 +231,7 @@
 
         // Main initialization
         async function init() {
-            addDebug('Initializing Lightning Out 2.0 Application');
+            console.log('Initializing Lightning Out 2.0 Application');
             
             try {
                 // Clear container
@@ -478,7 +239,7 @@
                 
                 // Get frontdoor URL
                 const frontdoorUrl = await getFrontdoorUrl();
-                addDebug('Frontdoor URL obtained', 'success');
+                console.log('Frontdoor URL obtained');
                 
                 // Create lightning-out-application element
                 lightningOutApp = document.createElement('lightning-out-application');
@@ -489,7 +250,7 @@
                 lightningOutApp.style.width = '100%';
                 lightningOutApp.style.minHeight = '500px';
                 
-                addDebug('Created lightning-out-application element');
+                console.log('Created lightning-out-application element');
                 
                 // Create component element
                 component = document.createElement('c-learning-program-form');
@@ -499,59 +260,45 @@
                     --slds-c-card-color-border: #0070d2;
                 `);
                 
-                addDebug('Created c-learning-program-form component');
-                
-                // Set up component event listeners
-                component.addEventListener('componentReady', (event) => {
-                    addDebug('Component ready event received', 'success');
-                    showMessage('Component is ready!');
-                });
-                
-                component.addEventListener('formSubmitted', (event) => {
-                    addDebug(`Form submitted: ${JSON.stringify(event.detail)}`, 'success');
-                    showMessage(`Form submitted successfully!`);
-                });
-                
-                component.addEventListener('formError', (event) => {
-                    addDebug(`Form error: ${JSON.stringify(event.detail)}`, 'error');
-                    showMessage(`Error: ${event.detail?.message}`, true);
-                });
-                
-                component.addEventListener('dataLoaded', (event) => {
-                    addDebug(`Data loaded: ${JSON.stringify(event.detail)}`, 'success');
-                });
+                console.log('Created c-learning-program-form component');
                 
                 // Set up app event listeners
                 lightningOutApp.addEventListener('lo.application.ready', () => {
-                    addDebug('Application ready', 'success');
+                    console.log('Application ready');
                     updateStatus('ready', '✅ Connected');
                     loadingOverlay.style.display = 'none';
-                    setControlsEnabled(true);
                     fixIframeVisibility();
                 });
                 
                 lightningOutApp.addEventListener('lo.iframe.load', (event) => {
-                    addDebug(`Iframe loaded from ${event.detail}`, 'success');
+                    console.log(`Iframe loaded from ${event.detail}`);
                     loadingOverlay.style.display = 'none';
                     fixIframeVisibility();
                 });
                 
                 lightningOutApp.addEventListener('lo.component.ready', () => {
-                    addDebug('Component instance ready', 'success');
+                    console.log('Component instance ready');
                 });
                 
                 lightningOutApp.addEventListener('lo.application.error', (event) => {
-                    addDebug(`Application error: ${JSON.stringify(event.detail)}`, 'error');
+                    console.error(`Application error: ${JSON.stringify(event.detail)}`);
                     updateStatus('error', '❌ Error');
-                    showMessage(`Application error: ${JSON.stringify(event.detail)}`, true);
+                    loadingOverlay.innerHTML = `
+                        <div style="color: #c23934; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
+                            <div>Failed to load component</div>
+                            <div style="font-size: 12px; margin-top: 8px;">Application error</div>
+                            <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 16px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+                        </div>
+                    `;
                 });
                 
                 lightningOutApp.addEventListener('lo.component.error', (event) => {
-                    addDebug(`Component error: ${JSON.stringify(event.detail)}`, 'error');
+                    console.error(`Component error: ${JSON.stringify(event.detail)}`);
                 });
                 
                 lightningOutApp.addEventListener('lo.iframe.error', (event) => {
-                    addDebug(`Iframe error: ${JSON.stringify(event.detail)}`, 'error');
+                    console.error(`Iframe error: ${JSON.stringify(event.detail)}`);
                     updateStatus('error', '❌ Connection Error');
                 });
                 
@@ -559,30 +306,20 @@
                 loContainer.appendChild(lightningOutApp);
                 lightningOutApp.appendChild(component);
                 
-                addDebug('Components added to DOM');
-                
-                // Set up button handlers
-                sendMessageBtn.onclick = sendMessage;
-                refreshBtn.onclick = refreshComponent;
-                getDataBtn.onclick = requestData;
-                clearLogsBtn.onclick = () => {
-                    debugMessages = [];
-                    debugContent.innerHTML = 'Logs cleared.';
-                    addDebug('Logs cleared');
-                };
+                console.log('Components added to DOM');
                 
                 // Periodic iframe visibility check
                 setInterval(fixIframeVisibility, 2000);
                 
             } catch (error) {
-                addDebug(`Initialization error: ${error.message}`, 'error');
+                console.error(`Initialization error: ${error.message}`);
                 updateStatus('error', '❌ Failed');
                 loadingOverlay.innerHTML = `
                     <div style="color: #c23934; text-align: center;">
                         <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
                         <div>Failed to load component</div>
                         <div style="font-size: 12px; margin-top: 8px;">${error.message}</div>
-                        <button onclick="location.reload()" style="margin-top: 16px;">Retry</button>
+                        <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 16px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
                     </div>
                 `;
             }
@@ -590,19 +327,19 @@
         
         // Start application
         async function start() {
-            addDebug('Starting Lightning Out 2.0 application...');
+            console.log('Starting Lightning Out 2.0 application...');
             
             // Wait for custom element registration
             if (customElements.get('lightning-out-application')) {
-                addDebug('Custom element already registered');
+                console.log('Custom element already registered');
                 await init();
             } else {
-                addDebug('Waiting for custom element registration...');
+                console.log('Waiting for custom element registration...');
                 await new Promise(resolve => {
                     const checkInterval = setInterval(() => {
                         if (customElements.get('lightning-out-application')) {
                             clearInterval(checkInterval);
-                            addDebug('Custom element registered');
+                            console.log('Custom element registered');
                             resolve();
                         }
                     }, 100);
