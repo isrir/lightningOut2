@@ -222,9 +222,23 @@
             }
         }
 
+        // Helper: Search for iframes across light DOM and open shadow roots.
+        function collectIframes(root = document, results = []) {
+            if (!root || typeof root.querySelectorAll !== 'function') return results;
+            root.querySelectorAll('iframe').forEach((iframe) => results.push(iframe));
+
+            root.querySelectorAll('*').forEach((el) => {
+                if (el.shadowRoot) {
+                    collectIframes(el.shadowRoot, results);
+                }
+            });
+
+            return results;
+        }
+
         // Function to monitor and fix iframe visibility
         function monitorIframes() {
-            const iframes = document.querySelectorAll('iframe');
+            const iframes = collectIframes();
             const lightningElements = document.querySelectorAll('lightning-out-application');
             
             addDebug(`Monitor check - Iframes: ${iframes.length}, Lightning elements: ${lightningElements.length}`);
@@ -249,6 +263,11 @@
                 }
                 return true;
             }
+
+            if (lightningElements.length > 0) {
+                addDebug('⚠️ Lightning Out element exists, but no iframe found in light DOM. It may be inside shadow DOM.');
+            }
+
             return false;
         }
 
