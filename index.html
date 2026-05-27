@@ -56,6 +56,10 @@
             transform: translate(-50%, -50%);
             text-align: center;
             z-index: 10;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .spinner {
@@ -116,6 +120,7 @@
             text-align: left;
             max-height: 200px;
             overflow: auto;
+            display: none;
         }
 
         .retry-btn {
@@ -138,10 +143,6 @@
             display: block;
             min-height: 500px;
         }
-
-        lightning-out-application:not([frontdoor-url]) {
-            visibility: hidden;
-        }
     </style>
     <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 </head>
@@ -155,15 +156,17 @@
             <div id="loading">
                 <div class="spinner"></div>
                 <p>Loading enrollment form...</p>
+                <p style="font-size: 12px; color: #666; margin-top: 10px;">Establishing secure connection</p>
             </div>
             <div id="error-container">
                 <div class="error-icon">⚠️</div>
                 <div class="error-title">Unable to Load Form</div>
                 <div class="error-message" id="error-message"></div>
-                <div class="error-details" id="error-details" style="display:none;"></div>
+                <div class="error-details" id="error-details"></div>
                 <button class="retry-btn" onclick="location.reload()">Try Again</button>
             </div>
             <lightning-out-application
+                id="loApplication"
                 app-id="1UsdN00000025rdSAA"
                 components="c-learning-program-form"
             ></lightning-out-application>
@@ -171,64 +174,130 @@
     </div>
 
     <script>
-      async function initGuestLightningOut() {
-  const loadingDiv = document.getElementById("loading");
-  const app = document.querySelector("lightning-out-application");
+        const loadingDiv = document.getElementById('loading');
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const errorDetails = document.getElementById('error-details');
+        const loApp = document.getElementById('loApplication');
 
-  try {
-    const response = await fetch("/api/guest-session");
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.detail || err.error || `HTTP ${response.status}`);
-    }
-
-    const { frontdoorUrl } = await response.json();
-    console.log("✅ frontdoorUrl received, initializing LO2...");
-
-    app.setAttribute("frontdoor-url", frontdoorUrl);
-
-    const timeout = setTimeout(() => {
-      showError("Component timed out. Check Salesforce CSP and Lightning Out Allowed Origins.");
-    }, 30000);
-
-    app.addEventListener("lo.application.ready", () => {
-      clearTimeout(timeout);
-      loadingDiv.style.display = "none";
-      console.log("✅ lo.application.ready fired");
-    });
-
-    app.addEventListener("lo.application.error", (e) => {
-      clearTimeout(timeout);
-      loadingDiv.style.display = "none";
-      showError(e.detail?.message || "LO2 application error");
-    });
-
-  } catch (error) {
-    loadingDiv.style.display = "none";
-    showError(error.message);
-  }
-}
-
-document.addEventListener("DOMContentLoaded", initGuestLightningOut);
-        
-        
-        function showError(message, details) {
-            const errorDiv = document.getElementById('error-container');
-            const errorMessage = document.getElementById('error-message');
-            const errorDetails = document.getElementById('error-details');
-            
+        function showError(message, detailsText = null) {
+            loadingDiv.style.display = 'none';
             errorMessage.textContent = message;
-            
-            if (details) {
-                errorDetails.textContent = details;
+            if (detailsText) {
+                errorDetails.textContent = detailsText;
                 errorDetails.style.display = 'block';
             }
-            
-            errorDiv.style.display = 'block';
+            errorContainer.style.display = 'block';
+        }
+
+        function hideError() {
+            errorContainer.style.display = 'none';
+            errorDetails.style.display = 'none';
+        }
+
+        async function getFrontdoorUrl() {
+            // Try JWT named user endpoint first (your api/jwt.js)
+            try {
+                console.log('Attempting JWT authentication...');
+                const response = await fetch('/api/jwt', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.frontdoorUrl) {
+                        console.log('✅ JWT auth successful');
+                        return data.frontdoorUrl;
+                    }
+                }
+                throw new Error('JWT auth failed');
+            } catch (jwtError) {
+                console.warn('JWT auth failed, trying alternative method:', jwtError.message);
+                
+                // Fallback: Try to get guest session (if you have that endpoint)
+                try {
+                    const response = await fetch('/api/guest-session', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.frontdoorUrl) {
+                            console.log('✅ Guest session obtained');
+                            return data.frontdoorUrl;
+                        }
+                    }
+                    throw new Error('Guest session failed');
+                } catch (guestError) {
+                    throw new Error('Unable to authenticate with Salesforce. Please check your backend API endpoints.');
+                }
+            }
+        }
+
+        async function initLightningOut() {
+            try {
+                hideError();
+                loadingDiv.style.display = 'block';
+                
+                // Get frontdoor URL from your backend
+                const frontdoorUrl = await getFrontdoorUrl();
+                
+                if (!frontdoorUrl) {
+                    throw new Error('No frontdoor URL received from server');
+                }
+                
+                console.log('Setting frontdoor-url:', frontdoorUrl);
+                
+                // Set the frontdoor-url attribute
+                loApp.setAttribute('frontdoor-url', frontdoorUrl);
+                
+                // Set up event listeners for Lightning Out
+                let readyTimeout = setTimeout(() => {
+                    if (loadingDiv.style.display !== 'none') {
+                        showError(
+                            'Form loading timeout',
+                            'The Salesforce Lightning Out component did not load within 30 seconds. Please check:\n' +
+                            '1. Your backend API endpoints are accessible\n' +
+                            '2. The Salesforce org is reachable\n' +
+                            '3. The app-id and components are correct'
+                        );
+                    }
+                }, 30000);
+                
+                loApp.addEventListener('lo.application.ready', () => {
+                    console.log('✅ Lightning Out application ready');
+                    clearTimeout(readyTimeout);
+                    loadingDiv.style.display = 'none';
+                });
+                
+                loApp.addEventListener('lo.application.error', (event) => {
+                    console.error('❌ Lightning Out error:', event.detail);
+                    clearTimeout(readyTimeout);
+                    showError(
+                        'Lightning Out Error',
+                        event.detail?.message || JSON.stringify(event.detail, null, 2)
+                    );
+                });
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showError(
+                    'Failed to initialize enrollment form',
+                    error.message + '\n\nMake sure your backend API endpoints are running:\n' +
+                    '- POST /api/jwt (for named user)\n' +
+                    '- GET /api/guest-session (optional fallback)'
+                );
+            }
         }
         
-        // Start the application when page loads
-        document.addEventListener('DOMContentLoaded', initGuestLightningOut);
+        // Start the initialization when page loads
+        document.addEventListener('DOMContentLoaded', initLightningOut);
     </script>
 </body>
 </html>
