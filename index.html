@@ -85,7 +85,7 @@
             font-family: 'Courier New', monospace;
             display: none;
             border-left: 3px solid #0070d2;
-            max-height: 250px;
+            max-height: 300px;
             overflow-y: auto;
         }
 
@@ -115,6 +115,12 @@
             border: none !important;
             visibility: visible !important;
         }
+        
+        lightning-out-application {
+            display: block;
+            width: 100%;
+            min-height: 400px;
+        }
     </style>
 </head>
 <body>
@@ -141,7 +147,7 @@
     </div>
 
     <!-- Salesforce Lightning Out Library -->
-    <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
+    <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js" onload="onLightningLibraryLoaded()" onerror="onLightningLibraryError()"></script>
 
     <script>
         // DOM Elements
@@ -154,15 +160,15 @@
         
         // State
         let debugMessages = [];
-        let retryCount = 0;
+        let isLightningReady = false;
+        let pendingInit = false;
         let iframeObserver = null;
 
         // Helper: Add debug message
         function addDebug(message, data = null) {
             const timestamp = new Date().toLocaleTimeString();
-            debugMessages.unshift({ timestamp, message, data }); // Show newest first
-            // Keep last 25 messages
-            if (debugMessages.length > 25) debugMessages.pop();
+            debugMessages.unshift({ timestamp, message, data });
+            if (debugMessages.length > 30) debugMessages.pop();
             
             debugContent.textContent = debugMessages.map(m => 
                 `[${m.timestamp}] ${m.message}${m.data ? '\n' + JSON.stringify(m.data, null, 2) : ''}`
@@ -178,7 +184,7 @@
         function showError(msg, details = null) {
             addDebug('❌ ERROR: ' + msg, details);
             loadingDiv.style.display = 'none';
-            errorMessage.textContent = msg;
+            errorMessage.innerHTML = msg;
             errorContainer.style.display = 'block';
         }
 
@@ -219,22 +225,22 @@
         // Function to monitor and fix iframe visibility
         function monitorIframes() {
             const iframes = document.querySelectorAll('iframe');
+            const lightningElements = document.querySelectorAll('lightning-out-application');
+            
+            addDebug(`Monitor check - Iframes: ${iframes.length}, Lightning elements: ${lightningElements.length}`);
+            
             if (iframes.length > 0) {
                 addDebug(`🎯 Found ${iframes.length} iframe(s) - ensuring visibility`);
                 iframes.forEach((iframe, idx) => {
-                    const wasHidden = iframe.style.display === 'none';
                     iframe.style.display = 'block';
                     iframe.style.visibility = 'visible';
                     iframe.style.width = '100%';
                     iframe.style.minHeight = '400px';
                     iframe.style.border = 'none';
-                    
-                    if (wasHidden) {
-                        addDebug(`✅ Fixed iframe ${idx + 1} visibility`);
-                    }
+                    addDebug(`✅ Fixed iframe ${idx + 1} visibility`);
                 });
                 
-                // Hide loading if iframes exist and are visible
+                // Hide loading if iframes exist
                 if (loadingDiv.style.display !== 'none') {
                     setTimeout(() => {
                         loadingDiv.style.display = 'none';
@@ -276,145 +282,21 @@
             addDebug('Iframe observer started');
         }
 
-        // Main initialization using Lightning Out API
-        async function initLightningOut() {
-            addDebug('🚀 Initializing Lightning Out Application');
-            hideError();
+        // Initialize using the custom element (most reliable)
+        async function initWithCustomElement() {
+            addDebug('🚀 Initializing with lightning-out-application element');
             
             try {
                 // Clear container
                 loContainer.innerHTML = '';
                 
-                // Create container for Lightning component
-                const componentContainer = document.createElement('div');
-                componentContainer.id = 'lightning-component-container';
-                componentContainer.style.width = '100%';
-                componentContainer.style.minHeight = '400px';
-                loContainer.appendChild(componentContainer);
-                
-                addDebug('Created component container', { id: componentContainer.id });
-                
-                // Get frontdoor URL for authentication
+                // Get frontdoor URL
                 const frontdoorUrl = await getFrontdoorUrl();
                 addDebug(`Frontdoor URL obtained (length: ${frontdoorUrl.length})`);
                 
-                // Check if Lightning is available
-                if (typeof $Lightning === 'undefined') {
-                    throw new Error('Lightning Out library not loaded. Check your internet connection.');
-                }
-                
-                addDebug('$Lightning object available', {
-                    use: typeof $Lightning.use,
-                    createComponent: typeof $Lightning.createComponent
-                });
-                
-                // Extract session ID from frontdoor URL
-                const urlParams = new URLSearchParams(frontdoorUrl.split('?')[1]);
-                const sessionId = urlParams.get('sid');
-                if (sessionId) {
-                    addDebug('Session ID extracted', { length: sessionId.length });
-                }
-                
-                // Set a timeout for the entire loading process
-                const loadingTimeout = setTimeout(() => {
-                    addDebug('⏰ Loading timeout (45 seconds) - checking if iframes exist');
-                    const hasIframes = monitorIframes();
-                    if (!hasIframes && loadingDiv.style.display !== 'none') {
-                        showError('Loading timed out. The component may not be properly configured in Salesforce.');
-                    } else if (hasIframes) {
-                        loadingDiv.style.display = 'none';
-                    }
-                }, 45000);
-                
-                // Use Lightning Out API
-                addDebug('Calling $Lightning.use()...');
-                $Lightning.use(
-                    '1UsdN00000025rdSAA',  // App ID
-                    function() {
-                        addDebug('✅ App loaded successfully');
-                        
-                        // Create the component
-                        addDebug('Creating component: c:learningProgramForm');
-                        $Lightning.createComponent(
-                            'c:learningProgramForm',  // Component name
-                            {},  // Attributes
-                            'lightning-component-container',  // Target container ID
-                            function(component) {
-                                addDebug('✅ Component creation callback fired', {
-                                    componentExists: !!component,
-                                    componentType: component?.toString?.() || 'unknown'
-                                });
-                                
-                                clearTimeout(loadingTimeout);
-                                
-                                // Monitor for iframes
-                                setTimeout(() => {
-                                    const iframesPresent = monitorIframes();
-                                    if (!iframesPresent) {
-                                        addDebug('⚠️ No iframes found yet - will continue monitoring');
-                                        // Keep checking for iframes
-                                        let checkCount = 0;
-                                        const interval = setInterval(() => {
-                                            checkCount++;
-                                            const found = monitorIframes();
-                                            if (found || checkCount > 20) {
-                                                clearInterval(interval);
-                                                if (!found) {
-                                                    addDebug('❌ No iframes detected after 10 seconds');
-                                                    // Try alternative approach - check container content
-                                                    const container = document.getElementById('lightning-component-container');
-                                                    addDebug('Container content check', {
-                                                        innerHTML: container.innerHTML?.substring(0, 200),
-                                                        children: container.children.length,
-                                                        hasContent: container.innerHTML?.length > 0
-                                                    });
-                                                }
-                                            }
-                                        }, 500);
-                                    }
-                                }, 500);
-                            },
-                            function(error) {
-                                addDebug('❌ Component creation error', error);
-                                clearTimeout(loadingTimeout);
-                                showError('Failed to create component: ' + JSON.stringify(error));
-                            }
-                        );
-                    },
-                    function(error) {
-                        addDebug('❌ App loading error', error);
-                        clearTimeout(loadingTimeout);
-                        showError('Failed to load Lightning app: ' + JSON.stringify(error));
-                    },
-                    frontdoorUrl  // Pass frontdoor URL for authentication
-                );
-                
-                // Also try the custom element approach as fallback
-                setTimeout(() => {
-                    if (loadingDiv.style.display !== 'none' && !document.querySelector('iframe')) {
-                        addDebug('🔄 Trying fallback: Custom element approach');
-                        tryFallbackElement(frontdoorUrl);
-                    }
-                }, 10000);
-                
-            } catch (error) {
-                addDebug('❌ Initialization error', { message: error.message, stack: error.stack });
-                showError(error.message);
-            }
-        }
-        
-        // Fallback: Use lightning-out-application custom element
-        async function tryFallbackElement(frontdoorUrl) {
-            addDebug('Attempting fallback with lightning-out-application element');
-            
-            try {
-                const loContainer = document.getElementById('lo-container');
-                const existingContainer = document.getElementById('lightning-component-container');
-                if (existingContainer) existingContainer.remove();
-                
                 // Create custom element
                 const loApp = document.createElement('lightning-out-application');
-                loApp.id = 'loAppFallback';
+                loApp.id = 'loApp';
                 loApp.setAttribute('app-id', '1UsdN00000025rdSAA');
                 loApp.setAttribute('components', 'c-learning-program-form');
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
@@ -422,32 +304,106 @@
                 loApp.style.minHeight = '400px';
                 loApp.style.display = 'block';
                 
-                // Add event listeners
-                loApp.addEventListener('lo.application.ready', () => {
-                    addDebug('✅ Fallback: lo.application.ready');
-                    setTimeout(monitorIframes, 500);
+                addDebug('Created lightning-out-application element', {
+                    appId: '1UsdN00000025rdSAA',
+                    components: 'c-learning-program-form'
                 });
                 
-                loApp.addEventListener('lo.iframe.load', () => {
-                    addDebug('✅ Fallback: lo.iframe.load');
+                // Set up event listeners
+                let isReady = false;
+                
+                loApp.addEventListener('lo.application.ready', () => {
+                    addDebug('✅ lo.application.ready - App loaded');
+                    isReady = true;
+                    setTimeout(() => {
+                        monitorIframes();
+                        if (loadingDiv.style.display !== 'none') {
+                            setTimeout(() => {
+                                loadingDiv.style.display = 'none';
+                                addDebug('Loading hidden after app ready');
+                            }, 1000);
+                        }
+                    }, 500);
+                });
+                
+                loApp.addEventListener('lo.iframe.load', (event) => {
+                    addDebug('📄 lo.iframe.load - Iframe loaded', { origin: event.detail });
                     setTimeout(monitorIframes, 100);
                 });
                 
-                loApp.addEventListener('lo.application.error', (e) => {
-                    addDebug('❌ Fallback: lo.application.error', e.detail);
+                loApp.addEventListener('lo.component.ready', (event) => {
+                    addDebug('✅ lo.component.ready - Component ready');
+                    setTimeout(monitorIframes, 100);
                 });
                 
-                loContainer.appendChild(loApp);
-                addDebug('Fallback element appended to DOM');
+                loApp.addEventListener('lo.application.error', (event) => {
+                    addDebug('❌ lo.application.error', event.detail);
+                    if (!isReady) {
+                        showError('Failed to load application: ' + JSON.stringify(event.detail));
+                    }
+                });
                 
-                // Monitor for iframes
-                setTimeout(monitorIframes, 1000);
-                setTimeout(monitorIframes, 3000);
-                setTimeout(monitorIframes, 5000);
+                loApp.addEventListener('lo.iframe.error', (event) => {
+                    addDebug('❌ lo.iframe.error', event.detail);
+                });
+                
+                loApp.addEventListener('lo.component.error', (event) => {
+                    addDebug('❌ lo.component.error', event.detail);
+                });
+                
+                // Append to DOM
+                loContainer.appendChild(loApp);
+                addDebug('Lightning Out element appended to DOM');
+                
+                // Set timeout for loading
+                setTimeout(() => {
+                    if (!isReady && loadingDiv.style.display !== 'none') {
+                        const hasIframes = monitorIframes();
+                        if (!hasIframes) {
+                            addDebug('⚠️ Loading timeout - no iframes detected');
+                            showError('Loading timed out. Please check:<br>• Component name is correct<br>• App ID is valid<br>• Component is exposed for Lightning Out');
+                        }
+                    }
+                }, 30000);
+                
+                // Monitor periodically
+                const monitorInterval = setInterval(() => {
+                    const hasIframes = monitorIframes();
+                    if (hasIframes && loadingDiv.style.display !== 'none') {
+                        loadingDiv.style.display = 'none';
+                        clearInterval(monitorInterval);
+                    }
+                }, 2000);
+                
+                // Clear interval after 30 seconds
+                setTimeout(() => clearInterval(monitorInterval), 30000);
                 
             } catch (error) {
-                addDebug('Fallback also failed', { error: error.message });
+                addDebug('❌ Custom element init error', { message: error.message, stack: error.stack });
+                showError(error.message);
             }
+        }
+        
+        // Callback when Lightning library loads
+        function onLightningLibraryLoaded() {
+            addDebug('✅ Lightning Out library loaded successfully');
+            addDebug('Checking $Lightning object...', { 
+                defined: typeof $Lightning !== 'undefined',
+                use: typeof $Lightning?.use,
+                createComponent: typeof $Lightning?.createComponent
+            });
+            isLightningReady = true;
+            
+            if (pendingInit) {
+                addDebug('Starting pending initialization');
+                initWithCustomElement();
+            }
+        }
+        
+        // Callback when Lightning library fails to load
+        function onLightningLibraryError() {
+            addDebug('❌ Failed to load Lightning Out library');
+            showError('Failed to load Salesforce Lightning library. Please check your network connection.');
         }
         
         // Start the application
@@ -455,23 +411,37 @@
             addDebug('Starting application...');
             setupIframeObserver();
             
-            // Check if custom element is registered
-            if (customElements.get('lightning-out-application')) {
-                addDebug('Custom element already registered');
+            // Check if Lightning library is already loaded
+            if (typeof $Lightning !== 'undefined') {
+                addDebug('Lightning library already loaded');
+                isLightningReady = true;
+                initWithCustomElement();
+            } else {
+                addDebug('Waiting for Lightning library to load...');
+                pendingInit = true;
+                
+                // Fallback: if library doesn't load within 5 seconds, try anyway with custom element
+                setTimeout(() => {
+                    if (!isLightningReady) {
+                        addDebug('⚠️ Library not loaded after 5 seconds, but custom element might still work');
+                        // Custom element might still work even if $Lightning is not available
+                        if (customElements.get('lightning-out-application')) {
+                            addDebug('Custom element is registered, attempting initialization anyway');
+                            initWithCustomElement();
+                        }
+                    }
+                }, 5000);
             }
-            
-            // Initialize Lightning Out
-            initLightningOut();
         }
         
-        // Wait for DOM and script to be ready
+        // Start when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', start);
         } else {
             start();
         }
         
-        // Manual retry function (can be called from console if needed)
+        // Manual retry function
         window.retryLightning = function() {
             addDebug('Manual retry triggered');
             location.reload();
