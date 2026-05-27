@@ -158,6 +158,14 @@
 </head>
 <body>
     <div class="container">
+
+        <!-- Header -->
+        <div class="header">
+            <h1>🎓 Learning Program Enrollment</h1>
+            <p>Select your program and complete enrollment below</p>
+            <span id="statusBadge" class="status-badge status-loading">⏳ Connecting…</span>
+        </div>
+
         <!-- Component Container -->
         <div class="component-wrapper">
             <div class="component-title">🎓 Enrollment Form</div>
@@ -261,9 +269,10 @@
                         iframe.style.height = h + 'px';
                     }
                 } catch (e) {
-                    // Cross-origin: can't read contentDocument — fall back to a generous fixed height
-                    // Set a tall enough height so the full form is visible
-                    iframe.style.height = '600px';
+                    // Cross-origin: can't read contentDocument.
+                    // Minimum safe height = padding + label + select + label +
+                    // textarea(110px) + button + margins ≈ 310px. Use 380px for safety.
+                    iframe.style.height = '380px';
                 }
             }
 
@@ -308,15 +317,23 @@
                 const style = document.createElement('style');
                 style.id = 'lp-height-patch';
                 style.textContent = `
+                    /* Remove the 220px floor so the outer iframe can measure true height */
                     .lp-form {
                         min-height: auto !important;
                         height: auto !important;
                         overflow: visible !important;
                         padding-bottom: 1.5rem !important;
                     }
+                    /* Keep textarea usable but don't let it inflate unnecessarily */
                     .lp-textarea {
-                        min-height: 120px !important;
-                        height: auto !important;
+                        min-height: 110px !important;
+                        resize: vertical;
+                    }
+                    /* Ensure select max-width doesn't cause layout shift */
+                    .lp-select,
+                    .lp-textarea {
+                        max-width: 100% !important;
+                        box-sizing: border-box !important;
                     }
                 `;
                 host.shadowRoot.appendChild(style);
