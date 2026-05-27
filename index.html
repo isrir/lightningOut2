@@ -52,7 +52,7 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             position: relative;
-            min-height: 750px;  /* INCREASED HEIGHT */
+            min-height: 780px;  /* INCREASED HEIGHT for container */
         }
 
         .component-title {
@@ -87,7 +87,7 @@
             align-items: center;
             justify-content: center;
             flex-direction: column;
-            border-radius: 8px;
+            border-radius: 12px;
             z-index: 10;
         }
 
@@ -105,18 +105,35 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Required Lightning Out styles - INCREASED HEIGHT */
+        /* Required Lightning Out styles - INCREASED HEIGHT for iframe and component */
         lightning-out-application {
             display: block;
             width: 100%;
-            min-height: 650px !important;
+            min-height: 680px !important;  /* INCREASED HEIGHT */
         }
 
         iframe {
             display: block !important;
             width: 100% !important;
-            min-height: 650px !important;
+            min-height: 680px !important;  /* INCREASED HEIGHT */
             border: none !important;
+        }
+
+        /* Target the inner Lightning Web Component form and increase its height */
+        c-learning-program-form {
+            display: block;
+            width: 100%;
+            min-height: 680px !important;  /* INCREASED HEIGHT for component */
+        }
+
+        /* Style for the form elements inside Lightning component */
+        .lp-form {
+            min-height: 580px !important;
+            padding: 20px !important;
+        }
+
+        .lp-textarea {
+            min-height: 180px !important;  /* INCREASED height for textarea */
         }
 
         .status-badge {
@@ -176,6 +193,8 @@
                     --slds-c-card-text-color: #1a1a1a;
                     --slds-c-card-color-border: #0070d2;
                     --custom-primary-color: #0070d2;
+                    display: block;
+                    min-height: 680px;
                 ">
             </c-learning-program-form>
         </div>
@@ -222,6 +241,23 @@
                     console.log('✅ Application ready');
                     updateStatus('ready', '✅ Connected');
                     if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    
+                    // After component loads, apply additional height styles to inner elements
+                    setTimeout(() => {
+                        const shadowRoots = document.querySelectorAll('c-learning-program-form');
+                        shadowRoots.forEach(el => {
+                            if (el.shadowRoot) {
+                                const form = el.shadowRoot.querySelector('.lp-form');
+                                if (form) {
+                                    form.style.minHeight = '580px';
+                                    const textarea = form.querySelector('.lp-textarea');
+                                    if (textarea) {
+                                        textarea.style.minHeight = '180px';
+                                    }
+                                }
+                            }
+                        });
+                    }, 500);
                 });
 
                 loApp.addEventListener('lo.iframe.load', (event) => {
@@ -287,6 +323,5 @@
             }, 100);
         }
     </script>
-    
 </body>
 </html>
