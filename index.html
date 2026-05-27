@@ -74,6 +74,8 @@
             font-family: monospace;
             display: none;
             border-left: 3px solid #0070d2;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         #debug-info.show {
@@ -91,6 +93,14 @@
             height: 400px;
             display: block;
             min-height: 400px;
+        }
+        
+        /* Force iframe visibility */
+        iframe {
+            display: block !important;
+            width: 100% !important;
+            height: 400px !important;
+            border: none !important;
         }
     </style>
 </head>
@@ -132,12 +142,13 @@
         
         let loApp = null;
         let debugMessages = [];
+        let iframeFixAttempts = 0;
 
         function addDebug(message, data = null) {
             const timestamp = new Date().toLocaleTimeString();
             debugMessages.push({ timestamp, message, data });
-            // Keep only last 20 messages
-            if (debugMessages.length > 20) debugMessages.shift();
+            // Keep only last 30 messages
+            if (debugMessages.length > 30) debugMessages.shift();
             
             debugContent.textContent = debugMessages.map(m => 
                 `[${m.timestamp}] ${m.message}${m.data ? '\n' + JSON.stringify(m.data, null, 2) : ''}`
@@ -155,6 +166,81 @@
             errorMessage.textContent     = msg;
             errorContainer.style.display = 'block';
         }
+
+        // Function to find and fix iframe visibility
+        function fixIframeVisibility() {
+            iframeFixAttempts++;
+            addDebug(`Attempting to fix iframe visibility (attempt ${iframeFixAttempts})`);
+            
+            // Try multiple selectors to find the iframe
+            const iframes = document.querySelectorAll('iframe');
+            addDebug(`Found ${iframes.length} iframes in document`);
+            
+            iframes.forEach((iframe, index) => {
+                addDebug(`Iframe ${index}:`, {
+                    src: iframe.src?.substring(0, 100),
+                    display: iframe.style.display,
+                    visibility: iframe.style.visibility,
+                    computedDisplay: window.getComputedStyle(iframe).display
+                });
+                
+                // Force iframe to be visible
+                iframe.style.display = 'block';
+                iframe.style.visibility = 'visible';
+                iframe.style.width = '100%';
+                iframe.style.height = '400px';
+                iframe.style.border = 'none';
+                
+                // Also try to find iframe inside shadow DOM
+                if (loApp && loApp.shadowRoot) {
+                    const shadowIframe = loApp.shadowRoot.querySelector('iframe');
+                    if (shadowIframe && shadowIframe !== iframe) {
+                        addDebug('Found iframe in shadowRoot, fixing too');
+                        shadowIframe.style.display = 'block';
+                        shadowIframe.style.width = '100%';
+                        shadowIframe.style.height = '400px';
+                    }
+                }
+            });
+            
+            if (iframes.length === 0 && iframeFixAttempts < 20) {
+                // Keep trying every 500ms until we find iframes
+                setTimeout(fixIframeVisibility, 500);
+            } else if (iframes.length > 0) {
+                addDebug(`✅ Fixed ${iframes.length} iframe(s) visibility`);
+                // Hide loading after iframe is visible
+                if (loadingDiv.style.display !== 'none') {
+                    loadingDiv.style.display = 'none';
+                }
+            }
+        }
+
+        // Also watch for DOM mutations to catch iframes when they're added
+        const observer = new MutationObserver((mutations) => {
+            let hasIframeChanges = false;
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeName === 'IFRAME') {
+                            addDebug('🎯 Iframe added to DOM via mutation');
+                            hasIframeChanges = true;
+                        } else if (node.querySelectorAll) {
+                            const iframes = node.querySelectorAll('iframe');
+                            if (iframes.length > 0) {
+                                addDebug(`🎯 ${iframes.length} iframe(s) added via mutation`);
+                                hasIframeChanges = true;
+                            }
+                        }
+                    });
+                }
+            });
+            if (hasIframeChanges) {
+                setTimeout(fixIframeVisibility, 100);
+            }
+        });
+
+        // Start observing
+        observer.observe(document.body, { childList: true, subtree: true });
 
         async function getFrontdoorUrl() {
             addDebug('Fetching frontdoor URL from /api/guest-session');
@@ -180,14 +266,11 @@
         async function init() {
             addDebug('Initializing Lightning Out Application');
             try {
-                // Create the element programmatically - this ensures NO child nodes
+                // Create the element programmatically
                 loApp = document.createElement('lightning-out-application');
                 loApp.id = 'loApp';
                 loApp.setAttribute('app-id', '1UsdN00000025rdSAA');
                 loApp.setAttribute('components', 'c-learning-program-form');
-                loApp.style.width = '100%';
-                loApp.style.height = '400px';
-                loApp.style.display = 'block';
                 
                 addDebug('Created lightning-out-application element', { 
                     id: loApp.id, 
@@ -195,37 +278,24 @@
                     components: 'c-learning-program-form'
                 });
                 
-                // Append to container (no whitespace issues)
+                // Append to container
                 loContainer.appendChild(loApp);
                 addDebug('Appended element to DOM');
                 
                 const frontdoorUrl = await getFrontdoorUrl();
                 addDebug(`Setting frontdoor-url: ${frontdoorUrl.substring(0, 100)}...`);
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
+                
+                // Start trying to fix iframe visibility immediately
+                setTimeout(fixIframeVisibility, 500);
+                setTimeout(fixIframeVisibility, 1500);
+                setTimeout(fixIframeVisibility, 3000);
 
                 loApp.addEventListener('lo.application.ready', () => {
-    addDebug('✅ lo.application.ready - Component loaded successfully');
-    loadingDiv.style.display = 'none';
-    
-    // FIX: Ensure iframe is visible
-    setTimeout(() => {
-        if (loApp.shadowRoot) {
-            const iframe = loApp.shadowRoot.querySelector('iframe');
-            if (iframe) {
-                // Remove display: none and ensure it's visible
-                iframe.style.display = 'block';
-                iframe.style.width = '100%';
-                iframe.style.height = '400px';
-                iframe.style.border = 'none'; // Optional: remove border
-                addDebug('Iframe visibility and dimensions fixed');
-            } else {
-                addDebug('No iframe found in shadowRoot');
-            }
-        } else {
-            addDebug('No shadowRoot available');
-        }
-    }, 500); // Small delay to ensure shadowRoot is ready
-});
+                    addDebug('✅ lo.application.ready - Component loaded successfully');
+                    // Try to fix iframe again when component is ready
+                    setTimeout(fixIframeVisibility, 100);
+                });
 
                 loApp.addEventListener('lo.application.error', (event) => {
                     addDebug('❌ lo.application.error', event.detail);
@@ -234,6 +304,8 @@
 
                 loApp.addEventListener('lo.iframe.load', (event) => {
                     addDebug('📄 lo.iframe.load - Iframe loaded', { origin: event.detail });
+                    // Fix iframe as soon as it loads
+                    setTimeout(fixIframeVisibility, 50);
                 });
 
                 loApp.addEventListener('lo.iframe.error', (event) => {
@@ -242,6 +314,7 @@
 
                 loApp.addEventListener('lo.component.ready', (event) => {
                     addDebug('✅ lo.component.ready - Component instance ready');
+                    setTimeout(fixIframeVisibility, 100);
                 });
 
                 loApp.addEventListener('lo.component.error', (event) => {
@@ -252,7 +325,19 @@
                 setTimeout(() => {
                     if (loadingDiv.style.display !== 'none') {
                         addDebug('⏰ Loading timeout (30 seconds)');
-                        showError('Loading timed out — please refresh.');
+                        // Check if iframes exist but might be hidden
+                        const iframes = document.querySelectorAll('iframe');
+                        if (iframes.length > 0) {
+                            addDebug(`Found ${iframes.length} iframe(s) but still timing out - forcing visibility`);
+                            fixIframeVisibility();
+                            setTimeout(() => {
+                                if (loadingDiv.style.display !== 'none') {
+                                    loadingDiv.style.display = 'none';
+                                }
+                            }, 1000);
+                        } else {
+                            showError('Loading timed out — please refresh.');
+                        }
                     }
                 }, 30000);
 
@@ -269,7 +354,6 @@
         } else {
             addDebug('Waiting for custom element registration...');
             window.addEventListener('DOMContentLoaded', () => {
-                // Small delay to ensure custom element is registered
                 setTimeout(() => {
                     if (customElements.get('lightning-out-application')) {
                         addDebug('Custom element registered, starting initialization');
