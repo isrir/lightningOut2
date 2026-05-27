@@ -45,7 +45,7 @@
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.2);
             overflow: hidden;
-            min-height: 500px;
+            min-height: 600px;
             position: relative;
         }
 
@@ -139,9 +139,29 @@
             background: #5a67d8;
         }
 
+        /* CRITICAL FIX: Ensure Lightning Out component is visible */
         lightning-out-application {
-            display: block;
-            min-height: 500px;
+            display: block !important;
+            width: 100% !important;
+            min-height: 550px !important;
+            height: auto !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        /* Ensure the iframe inside is visible */
+        lightning-out-application iframe {
+            width: 100% !important;
+            min-height: 550px !important;
+            height: auto !important;
+            border: none !important;
+            display: block !important;
+        }
+        
+        /* Debug helper - add a temporary border to see the component */
+        .form-container lightning-out-application {
+            border: 2px solid #667eea20;
+            border-radius: 16px;
         }
     </style>
     <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
@@ -196,7 +216,7 @@
         }
 
         async function getFrontdoorUrl() {
-            // Try JWT named user endpoint first (your api/jwt.js)
+            // Try JWT named user endpoint first
             try {
                 console.log('Attempting JWT authentication...');
                 const response = await fetch('/api/jwt', {
@@ -215,9 +235,9 @@
                 }
                 throw new Error('JWT auth failed');
             } catch (jwtError) {
-                console.warn('JWT auth failed, trying alternative method:', jwtError.message);
+                console.warn('JWT auth failed, trying guest session:', jwtError.message);
                 
-                // Fallback: Try to get guest session (if you have that endpoint)
+                // Fallback to guest session
                 try {
                     const response = await fetch('/api/guest-session', {
                         method: 'GET',
@@ -262,10 +282,7 @@
                     if (loadingDiv.style.display !== 'none') {
                         showError(
                             'Form loading timeout',
-                            'The Salesforce Lightning Out component did not load within 30 seconds. Please check:\n' +
-                            '1. Your backend API endpoints are accessible\n' +
-                            '2. The Salesforce org is reachable\n' +
-                            '3. The app-id and components are correct'
+                            'The Salesforce Lightning Out component did not load within 30 seconds.'
                         );
                     }
                 }, 30000);
@@ -274,6 +291,18 @@
                     console.log('✅ Lightning Out application ready');
                     clearTimeout(readyTimeout);
                     loadingDiv.style.display = 'none';
+                    
+                    // Force visibility after ready
+                    setTimeout(() => {
+                        const iframe = loApp.querySelector('iframe');
+                        if (iframe) {
+                            console.log('Iframe found, ensuring visibility');
+                            iframe.style.display = 'block';
+                            iframe.style.height = '550px';
+                            iframe.style.width = '100%';
+                        }
+                        console.log('Component should now be visible');
+                    }, 500);
                 });
                 
                 loApp.addEventListener('lo.application.error', (event) => {
@@ -289,15 +318,27 @@
                 console.error('Initialization error:', error);
                 showError(
                     'Failed to initialize enrollment form',
-                    error.message + '\n\nMake sure your backend API endpoints are running:\n' +
-                    '- POST /api/jwt (for named user)\n' +
-                    '- GET /api/guest-session (optional fallback)'
+                    error.message
                 );
             }
         }
         
         // Start the initialization when page loads
         document.addEventListener('DOMContentLoaded', initLightningOut);
+        
+        // Additional visibility check
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const iframe = loApp?.querySelector('iframe');
+                if (iframe) {
+                    console.log('Final visibility check - iframe dimensions:', {
+                        width: iframe.offsetWidth,
+                        height: iframe.offsetHeight,
+                        display: window.getComputedStyle(iframe).display
+                    });
+                }
+            }, 2000);
+        });
     </script>
 </body>
 </html>
