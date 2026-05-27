@@ -24,7 +24,10 @@ export default async function handler(req, res) {
     const username = process.env.SF_GUEST_USERNAME;
     const password = process.env.SF_GUEST_PASSWORD;
     const securityToken = process.env.SF_SECURITY_TOKEN || "";
-
+    console.log("Username:", username);
+console.log("Password length:", password.length);
+console.log("Security token length:", securityToken.length);
+console.log("Combined password length:", (password + securityToken).length);
     const missingVars = [];
     if (!domain) missingVars.push("SF_DOMAIN");
     if (!clientId) missingVars.push("SF_CLIENT_ID");
