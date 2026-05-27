@@ -44,13 +44,15 @@
             font-size: 16px;
         }
 
-        /* Component container */
+        /* Component container - INCREASED HEIGHT */
         .component-wrapper {
             background: white;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            position: relative;
+            min-height: 750px;  /* INCREASED HEIGHT */
         }
 
         .component-title {
@@ -103,17 +105,17 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Required Lightning Out styles */
+        /* Required Lightning Out styles - INCREASED HEIGHT */
         lightning-out-application {
             display: block;
             width: 100%;
-            min-height: 500px;
+            min-height: 650px !important;
         }
 
         iframe {
             display: block !important;
             width: 100% !important;
-            min-height: 500px !important;
+            min-height: 650px !important;
             border: none !important;
         }
 
@@ -160,7 +162,6 @@
             <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 
             <!-- Lightning Out App Wrapper -->
-            <!-- The frontdoor-url is set at runtime via API -->
             <lightning-out-application 
                 id="loApp"
                 app-id="1UsdN00000025rdSAA"
@@ -168,7 +169,6 @@
             </lightning-out-application>
 
             <!-- Your Component - position determines render order -->
-            <!-- Component with custom styling using CSS custom properties -->
             <c-learning-program-form 
                 id="learningProgramComponent"
                 style="
@@ -192,8 +192,10 @@
 
         // Update status function
         function updateStatus(status, text) {
-            statusBadge.className = `status-badge status-${status}`;
-            statusBadge.innerHTML = text;
+            if (statusBadge) {
+                statusBadge.className = `status-badge status-${status}`;
+                statusBadge.innerHTML = text;
+            }
         }
 
         // Get frontdoor URL from your backend
@@ -211,22 +213,20 @@
         // Initialize Lightning Out
         async function init() {
             try {
-                // Set frontdoor URL at runtime (as per documentation)
                 const frontdoorUrl = await getFrontdoorUrl();
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
                 
                 console.log('Frontdoor URL set, initializing...');
 
-                // App event listeners
                 loApp.addEventListener('lo.application.ready', () => {
                     console.log('✅ Application ready');
                     updateStatus('ready', '✅ Connected');
-                    loadingOverlay.style.display = 'none';
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
                 });
 
                 loApp.addEventListener('lo.iframe.load', (event) => {
                     console.log('✅ Iframe loaded from:', event.detail);
-                    loadingOverlay.style.display = 'none';
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
                 });
 
                 loApp.addEventListener('lo.component.ready', () => {
@@ -236,41 +236,42 @@
                 loApp.addEventListener('lo.application.error', (event) => {
                     console.error('❌ Application error:', event.detail);
                     updateStatus('error', '❌ Connection Error');
-                    loadingOverlay.innerHTML = `
-                        <div style="color: #c23934; text-align: center;">
-                            <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
-                            <div>Failed to load enrollment form</div>
-                            <div style="font-size: 12px; margin-top: 8px;">Please check your connection and try again</div>
-                            <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 24px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
-                        </div>
-                    `;
+                    if (loadingOverlay) {
+                        loadingOverlay.innerHTML = `
+                            <div style="color: #c23934; text-align: center;">
+                                <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
+                                <div>Failed to load enrollment form</div>
+                                <div style="font-size: 12px; margin-top: 8px;">Please check your connection and try again</div>
+                                <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 24px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+                            </div>
+                        `;
+                    }
                 });
 
-                // Component event listeners (if your component dispatches events)
                 if (component) {
                     component.addEventListener('formSubmitted', (event) => {
                         console.log('Form submitted:', event.detail);
-                        // Handle form submission success
                         alert('Enrollment submitted successfully!');
                     });
 
                     component.addEventListener('formError', (event) => {
                         console.error('Form error:', event.detail);
-                        // Handle form error
                     });
                 }
 
             } catch (error) {
                 console.error('Initialization error:', error);
                 updateStatus('error', '❌ Failed to Connect');
-                loadingOverlay.innerHTML = `
-                    <div style="color: #c23934; text-align: center;">
-                        <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
-                        <div>Failed to connect to Salesforce</div>
-                        <div style="font-size: 12px; margin-top: 8px;">${error.message}</div>
-                        <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 24px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
-                    </div>
-                `;
+                if (loadingOverlay) {
+                    loadingOverlay.innerHTML = `
+                        <div style="color: #c23934; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
+                            <div>Failed to connect to Salesforce</div>
+                            <div style="font-size: 12px; margin-top: 8px;">${error.message}</div>
+                            <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 24px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+                        </div>
+                    `;
+                }
             }
         }
 
