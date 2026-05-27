@@ -1,7 +1,6 @@
 (function() {
     const loApp = document.getElementById('loApp');
     const component = document.getElementById('learningProgramComponent');
-    const loadingOverlay = document.getElementById('loadingOverlay');
 
     function autoSizeIframe(iframe) {
         if (!iframe) return;
@@ -64,23 +63,18 @@
             loApp.setAttribute('frontdoor-url', frontdoorUrl);
 
             loApp.addEventListener('lo.application.ready', () => {
-                if (loadingOverlay) loadingOverlay.style.display = 'none';
                 const iframe = loApp.querySelector('iframe');
                 autoSizeIframe(iframe);
                 setTimeout(patchShadowStyles, 400);
             });
 
             loApp.addEventListener('lo.iframe.load', () => {
-                if (loadingOverlay) loadingOverlay.style.display = 'none';
                 const iframe = loApp.querySelector('iframe');
                 autoSizeIframe(iframe);
             });
 
             loApp.addEventListener('lo.application.error', (event) => {
                 console.error('Error:', event.detail);
-                if (loadingOverlay) {
-                    loadingOverlay.innerHTML = '<div style="color:#c23934;text-align:center;">Failed to load form.<br><button onclick="location.reload()">Retry</button></div>';
-                }
             });
 
             if (component) {
@@ -91,9 +85,6 @@
 
         } catch (error) {
             console.error('Init error:', error);
-            if (loadingOverlay) {
-                loadingOverlay.innerHTML = '<div style="color:#c23934;text-align:center;">Connection failed.<br><button onclick="location.reload()">Retry</button></div>';
-            }
         }
     }
 
