@@ -3,74 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lightning Out 2.0 - Test Component</title>
+    <title>Learning Program Enrollment</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            padding: 20px;
-            background: #f5f7fa;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Salesforce Sans', Arial, sans-serif;
+            background: #f3f3f3;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
         .container {
             max-width: 800px;
             margin: 0 auto;
+        }
+
+        .header {
             background: white;
             border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        h1 {
-            color: #0070d2;
+            padding: 20px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #0070d2;
         }
-        
+
+        .header h1 {
+            color: #1a1a1a;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .status-loading {
+            background: #fff3e0;
+            color: #e6a700;
+        }
+
+        .status-ready {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        #component-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 500px;
+            position: relative;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 8px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #0070d2;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         lightning-out-application {
             display: block;
             width: 100%;
-            min-height: 400px;
+            min-height: 500px;
         }
-        
+
         iframe {
             display: block !important;
             width: 100% !important;
-            min-height: 400px !important;
+            min-height: 500px !important;
             border: none !important;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📚 Salesforce Component Test</h1>
-        
-        <!-- Lightning Out Library -->
-        <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
-        
-        <!-- App Wrapper -->
-        <lightning-out-application 
-            app-id="1UsdN00000025rdSAA" 
-            components="c-dd">
-        </lightning-out-application>
-        
-        <!-- Your Component -->
-        <c-dd></c-dd>
+        <div class="header">
+            <h1>📚 Learning Program Enrollment</h1>
+            <p>Powered by Salesforce Lightning Out 2.0</p>
+            <div id="status" class="status status-loading">🔄 Loading...</div>
+        </div>
+
+        <div id="component-container">
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="spinner"></div>
+                <div>Connecting to Salesforce...</div>
+            </div>
+            <div id="lo-container"></div>
+        </div>
     </div>
-    
+
+    <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
+
     <script>
-        // Optional: Monitor loading status
-        const app = document.querySelector('lightning-out-application');
-        
-        app.addEventListener('lo.application.ready', () => {
-            console.log('✅ App ready - component loaded');
-        });
-        
-        app.addEventListener('lo.iframe.load', (e) => {
-            console.log('✅ Iframe loaded from:', e.detail);
-        });
-        
-        app.addEventListener('lo.application.error', (e) => {
-            console.error('❌ App error:', e.detail);
-        });
+        const statusDiv = document.getElementById('status');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loContainer = document.getElementById('lo-container');
+
+        function updateStatus(status, text) {
+            statusDiv.className = `status status-${status}`;
+            statusDiv.innerHTML = text;
+        }
+
+        async function getFrontdoorUrl() {
+            try {
+                const response = await fetch('/api/guest-session');
+                const data = await response.json();
+                return data.frontdoorUrl;
+            } catch (error) {
+                console.error('Failed to get frontdoor URL:', error);
+                throw error;
+            }
+        }
+
+        async function init() {
+            try {
+                // Get frontdoor URL
+                const frontdoorUrl = await getFrontdoorUrl();
+                
+                // Clear container
+                loContainer.innerHTML = '';
+                
+                // Create app wrapper
+                const app = document.createElement('lightning-out-application');
+                app.setAttribute('app-id', '1UsdN00000025rdSAA');
+                app.setAttribute('components', 'c-learning-program-form');
+                app.setAttribute('frontdoor-url', frontdoorUrl);
+                app.style.display = 'block';
+                app.style.width = '100%';
+                app.style.minHeight = '500px';
+                
+                // Create component
+                const component = document.createElement('c-learning-program-form');
+                component.setAttribute('style', `
+                    --slds-c-card-color-background: #ffffff;
+                    --slds-c-card-text-color: #1a1a1a;
+                    --slds-c-card-color-border: #0070d2;
+                `);
+                
+                // App event listeners
+                app.addEventListener('lo.application.ready', () => {
+                    console.log('✅ App ready');
+                    updateStatus('ready', '✅ Connected');
+                    loadingOverlay.style.display = 'none';
+                });
+                
+                app.addEventListener('lo.iframe.load', (e) => {
+                    console.log('✅ Iframe loaded from:', e.detail);
+                    loadingOverlay.style.display = 'none';
+                });
+                
+                app.addEventListener('lo.component.ready', () => {
+                    console.log('✅ Component ready');
+                });
+                
+                app.addEventListener('lo.application.error', (e) => {
+                    console.error('❌ App error:', e.detail);
+                    updateStatus('error', '❌ Error');
+                });
+                
+                // Append to DOM
+                loContainer.appendChild(app);
+                app.appendChild(component);
+                
+                console.log('Component initialization complete');
+                
+            } catch (error) {
+                console.error('Init error:', error);
+                updateStatus('error', '❌ Failed');
+                loadingOverlay.innerHTML = `
+                    <div style="color: #c23934; text-align: center;">
+                        <div>Failed to load component</div>
+                        <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 16px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Wait for custom element and start
+        if (customElements.get('lightning-out-application')) {
+            init();
+        } else {
+            const checkInterval = setInterval(() => {
+                if (customElements.get('lightning-out-application')) {
+                    clearInterval(checkInterval);
+                    init();
+                }
+            }, 100);
+        }
     </script>
 </body>
 </html>
