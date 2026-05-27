@@ -64,37 +64,12 @@
             font-size: 14px;
         }
 
-        /*
-         * DO NOT set display:block here.
-         * LO2 connectedCallback sets display:none via inline style using ||=
-         * It will only show the element itself after lo.application.ready.
-         * We only need to guarantee a height so the child 100% chain resolves.
-         */
         lightning-out-application {
             width: 100%;
-            /*
-             * height must be set as an attribute or inline BEFORE connectedCallback.
-             * The ||= in LO2 source means: only sets if falsy, so pre-setting wins.
-             * We set it in the <script> block below before the element connects.
-             */
-        }
-
-        c-learning-program-form {
-            /*
-             * Also pre-set via script below, but this is a fallback.
-             * The iframe inside uses height:100%, so this element needs a real height.
-             */
-            display: block;
-            width: 100%;
             height: 400px;
+            display: block;
         }
     </style>
-
-    <!--
-        Load LO2 script AFTER the element is in the DOM so connectedCallback
-        fires after we've pre-set the height attribute.
-        We move this to end of body.
-    -->
 </head>
 <body>
     <div id="app-wrapper">
@@ -112,25 +87,15 @@
             <button onclick="location.reload()">Retry</button>
         </div>
 
-        <!--
-            Set height inline HERE, before LO2 script loads and calls
-            connectedCallback. The ||= in LO2 source means our pre-set value wins.
-        -->
+        <!-- IMPORTANT: Self-closing tag - no whitespace or children allowed -->
         <lightning-out-application
             id="loApp"
             app-id="1UsdN00000025rdSAA"
             components="c-learning-program-form"
-            style="width:100%; height:400px;">
-        </lightning-out-application>
+            style="width:100%; height:400px;" />
 
     </div>
 
-    <!--
-        IMPORTANT: LO2 script loads here, AFTER the element declaration above.
-        This ensures our inline style is already on the element when
-        connectedCallback runs and does: this.style.display ||= "none"
-        Our height:400px is already set, so ||= won't touch it.
-    -->
     <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 
     <script>
@@ -161,24 +126,11 @@
                 const frontdoorUrl = await getFrontdoorUrl();
                 console.log('Setting frontdoor URL');
 
-                /*
-                 * Setting frontdoor-url triggers _propertyChanged_frontdoorUrl
-                 * in LO2 source → calls #z() → loads the hidden auth iframe.
-                 * After auth iframe posts lo.loaded, LO2 fires lo.application.ready
-                 * and sets display:block on lightning-out-application automatically.
-                 * We don't need to touch display at all.
-                 */
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
 
                 loApp.addEventListener('lo.application.ready', () => {
                     console.log('✅ Component ready');
                     loadingDiv.style.display = 'none';
-                    /*
-                     * LO2 sets display:block on loApp automatically here.
-                     * The component iframe (inside closed shadow of c-learning-program-form)
-                     * uses height:100% → inherits 400px from our inline style above.
-                     * No iframe manipulation needed — closed shadow blocks it anyway.
-                     */
                 });
 
                 loApp.addEventListener('lo.application.error', (event) => {
