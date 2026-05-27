@@ -163,6 +163,8 @@
         let isLightningReady = false;
         let pendingInit = false;
         let iframeObserver = null;
+        let appReady = false;
+        let iframeLoaded = false;
 
         // Helper: Add debug message
         function addDebug(message, data = null) {
@@ -264,6 +266,11 @@
                 return true;
             }
 
+            if (iframeLoaded || appReady) {
+                addDebug('ℹ️ Load event already fired; iframe may be inside a closed or encapsulated shadow DOM. Assuming Lightning Out loaded successfully.');
+                return true;
+            }
+
             if (lightningElements.length > 0) {
                 addDebug('⚠️ Lightning Out element exists, but no iframe found in light DOM. It may be inside shadow DOM.');
             }
@@ -334,6 +341,7 @@
                 loApp.addEventListener('lo.application.ready', () => {
                     addDebug('✅ lo.application.ready - App loaded');
                     isReady = true;
+                    appReady = true;
                     setTimeout(() => {
                         monitorIframes();
                         if (loadingDiv.style.display !== 'none') {
@@ -347,6 +355,13 @@
                 
                 loApp.addEventListener('lo.iframe.load', (event) => {
                     addDebug('📄 lo.iframe.load - Iframe loaded', { origin: event.detail });
+                    iframeLoaded = true;
+                    if (loadingDiv.style.display !== 'none') {
+                        setTimeout(() => {
+                            loadingDiv.style.display = 'none';
+                            addDebug('Loading hidden after iframe load event');
+                        }, 200);
+                    }
                     setTimeout(monitorIframes, 100);
                 });
                 
@@ -387,9 +402,12 @@
                 
                 // Monitor periodically
                 const monitorInterval = setInterval(() => {
-                    const hasIframes = monitorIframes();
-                    if (hasIframes && loadingDiv.style.display !== 'none') {
-                        loadingDiv.style.display = 'none';
+                    const hasLoaded = monitorIframes();
+                    if (hasLoaded) {
+                        if (loadingDiv.style.display !== 'none') {
+                            loadingDiv.style.display = 'none';
+                            addDebug('Loading hidden by periodic monitor');
+                        }
                         clearInterval(monitorInterval);
                     }
                 }, 2000);
