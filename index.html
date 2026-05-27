@@ -204,25 +204,28 @@
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
 
                 loApp.addEventListener('lo.application.ready', () => {
-                    addDebug('✅ lo.application.ready - Component loaded successfully');
-                    loadingDiv.style.display = 'none';
-                    
-                    // Check if the component rendered
-                    setTimeout(() => {
-                        const shadowRoot = loApp.shadowRoot;
-                        if (shadowRoot) {
-                            const iframe = shadowRoot.querySelector('iframe');
-                            if (iframe) {
-                                addDebug(`Iframe found - src: ${iframe.src.substring(0, 150)}...`);
-                                addDebug(`Iframe sandbox: ${iframe.getAttribute('sandbox')}`);
-                            } else {
-                                addDebug('No iframe found in shadowRoot');
-                            }
-                        } else {
-                            addDebug('No shadowRoot available');
-                        }
-                    }, 1000);
-                });
+    addDebug('✅ lo.application.ready - Component loaded successfully');
+    loadingDiv.style.display = 'none';
+    
+    // FIX: Ensure iframe is visible
+    setTimeout(() => {
+        if (loApp.shadowRoot) {
+            const iframe = loApp.shadowRoot.querySelector('iframe');
+            if (iframe) {
+                // Remove display: none and ensure it's visible
+                iframe.style.display = 'block';
+                iframe.style.width = '100%';
+                iframe.style.height = '400px';
+                iframe.style.border = 'none'; // Optional: remove border
+                addDebug('Iframe visibility and dimensions fixed');
+            } else {
+                addDebug('No iframe found in shadowRoot');
+            }
+        } else {
+            addDebug('No shadowRoot available');
+        }
+    }, 500); // Small delay to ensure shadowRoot is ready
+});
 
                 loApp.addEventListener('lo.application.error', (event) => {
                     addDebug('❌ lo.application.error', event.detail);
