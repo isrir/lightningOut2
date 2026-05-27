@@ -5,117 +5,211 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learning Program Enrollment</title>
     <style>
-        /* Minimal CSS to ensure component visibility */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Salesforce Sans', Arial, sans-serif;
+            background: #f3f3f3;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        #app-wrapper {
+            width: 100%;
+            max-width: 600px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            padding: 2rem;
+            min-height: 300px;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        #loading .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #0070d2;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #error-container {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+            color: #c23934;
+        }
+
+        #error-container p {
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        #error-container button {
+            padding: 8px 20px;
+            background: #0070d2;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
         lightning-out-application {
             display: block !important;
             width: 100% !important;
-            min-height: 550px !important;
         }
-        
+
         lightning-out-application iframe {
+            display: block !important;
             width: 100% !important;
-            min-height: 550px !important;
+            height: 550px !important;
             border: none !important;
+            visibility: visible !important;
         }
     </style>
     <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 </head>
 <body>
-    <!-- Loading indicator -->
-    <div id="loading" style="text-align: center; padding: 40px; font-family: Arial;">
-        <div>⏳ Loading enrollment form...</div>
-        <div style="font-size: 12px; color: #666; margin-top: 10px;">Establishing secure connection</div>
+    <div id="app-wrapper">
+
+        <div id="loading">
+            <div class="spinner"></div>
+            <div>Loading enrollment form…</div>
+            <div style="font-size:12px; color:#888; margin-top:6px;">
+                Establishing secure connection
+            </div>
+        </div>
+
+        <div id="error-container">
+            <p id="error-message"></p>
+            <button onclick="location.reload()">Retry</button>
+        </div>
+
+        <lightning-out-application
+            id="loApp"
+            app-id="1UsdN00000025rdSAA"
+            components="c-learning-program-form">
+        </lightning-out-application>
+
     </div>
-    
-    <!-- Error container -->
-    <div id="error-container" style="display: none; text-align: center; padding: 40px; color: red;">
-        <p id="error-message"></p>
-        <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px;">Retry</button>
-    </div>
-    
-    <!-- Lightning Out Application - THIS IS ALL YOU NEED -->
-    <lightning-out-application 
-        id="loApp"
-        app-id="1UsdN00000025rdSAA" 
-        components="c-learning-program-form">
-    </lightning-out-application>
 
     <script>
-        const loApp = document.getElementById('loApp');
-        const loadingDiv = document.getElementById('loading');
+        const loApp          = document.getElementById('loApp');
+        const loadingDiv     = document.getElementById('loading');
         const errorContainer = document.getElementById('error-container');
-        const errorMessage = document.getElementById('error-message');
-        
+        const errorMessage   = document.getElementById('error-message');
+
         function showError(msg) {
-            loadingDiv.style.display = 'none';
-            errorMessage.textContent = msg;
+            loadingDiv.style.display    = 'none';
+            errorMessage.textContent    = msg;
             errorContainer.style.display = 'block';
         }
-        
-        // Force the component to be visible (fixes Salesforce inline display:none issue)
-        function forceVisibility() {
-            if (loApp) {
-                loApp.style.display = 'block';
-                loApp.style.width = '100%';
-                loApp.style.minHeight = '550px';
-                const iframe = loApp.querySelector('iframe');
-                if (iframe) {
-                    iframe.style.display = 'block';
-                    iframe.style.width = '100%';
-                    iframe.style.height = '550px';
-                }
-            }
+
+        function forceIframeVisible() {
+            const iframe = loApp.querySelector('iframe');
+            if (!iframe) return;
+
+            iframe.setAttribute('style', [
+                'display: block !important',
+                'width: 100% !important',
+                'height: 550px !important',
+                'min-height: 550px !important',
+                'border: none !important',
+                'visibility: visible !important',
+                'opacity: 1 !important',
+            ].join('; '));
         }
-        
+
+        // Watch for the iframe being injected by Lightning Out
+        const iframeObserver = new MutationObserver(() => {
+            const iframe = loApp.querySelector('iframe');
+            if (iframe) {
+                iframeObserver.disconnect();
+                forceIframeVisible();
+
+                // Re-apply after iframe finishes its own load
+                iframe.addEventListener('load', () => {
+                    forceIframeVisible();
+                    // Try to sync height to actual content (same-origin only)
+                    setTimeout(() => {
+                        try {
+                            const innerHeight =
+                                iframe.contentDocument?.body?.scrollHeight;
+                            if (innerHeight && innerHeight > 100) {
+                                iframe.style.height = innerHeight + 'px';
+                            }
+                        } catch (e) {
+                            // Cross-origin — fixed height is fine
+                        }
+                    }, 800);
+                });
+            }
+        });
+
+        iframeObserver.observe(loApp, { childList: true, subtree: true });
+
         async function getFrontdoorUrl() {
-            try {
-                // Try to get frontdoor URL from your backend
-                const response = await fetch('/api/guest-session');
-                if (!response.ok) throw new Error('Failed to get session');
-                const data = await response.json();
-                if (!data.frontdoorUrl) throw new Error('No frontdoor URL received');
-                return data.frontdoorUrl;
-            } catch (error) {
-                console.error('Session error:', error);
-                throw new Error('Unable to authenticate with Salesforce: ' + error.message);
+            const response = await fetch('/api/guest-session');
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || `Session API returned ${response.status}`);
             }
+            const data = await response.json();
+            if (!data.frontdoorUrl) throw new Error('No frontdoorUrl in response');
+            return data.frontdoorUrl;
         }
-        
+
         async function init() {
             try {
-                // Get frontdoor URL from your API
                 const frontdoorUrl = await getFrontdoorUrl();
                 console.log('Setting frontdoor URL');
-                
-                // Set the attribute to authenticate
                 loApp.setAttribute('frontdoor-url', frontdoorUrl);
-                
-                // Listen for ready event
+
                 loApp.addEventListener('lo.application.ready', () => {
                     console.log('✅ Component ready');
                     loadingDiv.style.display = 'none';
-                    forceVisibility();
+                    loApp.style.display      = 'block';
+                    forceIframeVisible();
                 });
-                
-                // Listen for errors
+
                 loApp.addEventListener('lo.application.error', (event) => {
                     console.error('Component error:', event.detail);
                     showError(event.detail?.message || 'Failed to load component');
                 });
-                
-                // Timeout fallback
+
+                // Timeout fallback — 30 s
                 setTimeout(() => {
                     if (loadingDiv.style.display !== 'none') {
-                        showError('Loading timeout - please check your connection and refresh');
+                        showError('Loading timed out — please check your connection and refresh.');
                     }
                 }, 30000);
-                
+
             } catch (error) {
+                console.error('Init error:', error);
                 showError(error.message);
             }
         }
-        
-        // Start the application
+
         init();
     </script>
 </body>
