@@ -17,7 +17,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Server configuration error", missing: missingVars });
     }
 
-    // Step 1: client_credentials grant (no username/password needed)
+    // Step 1: client_credentials grant
     const tokenResponse = await fetch(
       `https://${domain}/services/oauth2/token`,
       {
@@ -40,8 +40,9 @@ export default async function handler(req, res) {
     }
 
     const { access_token, instance_url } = tokenData;
+    console.log("✅ Token obtained, instance_url:", instance_url);
 
-    // Step 2: exchange for LO2 frontdoor URL
+    // Step 2: try LO2 frontdoor endpoint first
     const frontdoorResponse = await fetch(
       `${instance_url}/services/lightning/ui/2.0/frontdoor`,
       {
@@ -53,20 +54,38 @@ export default async function handler(req, res) {
         body: JSON.stringify({})
       }
     );
-    const frontdoorData = await frontdoorResponse.json();
-    if (!frontdoorResponse.ok || !frontdoorData.frontdoorUrl) {
-      return res.status(502).json({
-        error: "Failed to get Lightning Out session",
-        detail: frontdoorData
-      });
+
+    const rawText = await frontdoorResponse.text();
+    console.log("Frontdoor raw response (first 300):", rawText.substring(0, 300));
+
+    // Check if response is valid JSON with frontdoorUrl
+    let frontdoorUrl;
+    try {
+      const frontdoorData = JSON.parse(rawText);
+      if (frontdoorData.frontdoorUrl) {
+        frontdoorUrl = frontdoorData.frontdoorUrl;
+        console.log("✅ LO2 frontdoor URL obtained");
+      }
+    } catch (e) {
+      console.log("LO2 frontdoor endpoint returned HTML — falling back to classic frontdoor");
+    }
+
+    // Step 3: fall back to classic /secur/frontdoor.jsp
+    if (!frontdoorUrl) {
+      const retURL = encodeURIComponent(
+        `/lightning/n/LearningProgramForm`
+      );
+      frontdoorUrl = `${instance_url}/secur/frontdoor.jsp?sid=${access_token}&retURL=${retURL}`;
+      console.log("✅ Classic frontdoor URL built");
     }
 
     return res.status(200).json({
-      frontdoorUrl: frontdoorData.frontdoorUrl,
-      instanceUrl:  instance_url
+      frontdoorUrl,
+      instanceUrl: instance_url
     });
 
   } catch (error) {
+    console.error("Unexpected error:", error);
     return res.status(500).json({ error: "Internal server error", message: error.message });
   }
 }
