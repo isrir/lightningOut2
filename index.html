@@ -47,17 +47,19 @@
             font-size: 15px;
         }
 
-        /* Component Card */
+        /* Component Card - INCREASED HEIGHT */
         .component-wrapper {
             background: white;
             border-radius: 20px;
-            padding: 24px;
+            padding: 32px 28px;
             margin-bottom: 24px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.05);
             transition: all 0.2s;
-            /* CRITICAL: no fixed height — content-driven */
+            /* INCREASED HEIGHT: using min-height to ensure enough vertical space */
+            min-height: 700px;
             height: auto;
             overflow: visible;
+            position: relative;
         }
 
         .component-title {
@@ -129,8 +131,7 @@
             to { transform: rotate(360deg); }
         }
 
-        /* ========== IFRAME RESIZING MASTER FIX ========== */
-        /* Let the Lightning Out iframe expand naturally — no forced constraints */
+        /* Lightning Out & iframe styling */
         lightning-out-application {
             display: block;
             width: 100%;
@@ -144,18 +145,14 @@
             width: 100% !important;
             border: none !important;
             overflow: visible !important;
-            /* Height will be set dynamically by JavaScript polling */
-            transition: height 0.2s ease-out;
+            min-height: 500px;
+            height: auto;
         }
 
         c-learning-program-form {
             display: block;
             width: 100%;
             height: auto;
-        }
-
-        .component-wrapper {
-            position: relative;
         }
 
         button.retry-btn {
@@ -187,12 +184,12 @@
         <span id="statusBadge" class="status-badge status-loading">⏳ Establishing secure session...</span>
     </div>
 
-    <!-- Component Container (iframe + Lightning Out) -->
+    <!-- Component Container - INCREASED HEIGHT applied via min-height: 700px -->
     <div class="component-wrapper" id="componentWrapper">
         <div class="component-title">📋 Enrollment Form</div>
 
-        <!-- Loading overlay -->
-        <div id="loadingOverlay" class="loading-overlay">
+        <!-- Loading overlay (initially hidden as per your request with opacity:0; display:none) -->
+        <div id="loadingOverlay" class="loading-overlay" style="opacity: 0; display: none;">
             <div class="spinner"></div>
             <div style="font-weight: 500;">Loading secure form...</div>
             <div style="font-size: 12px; color: #6c757d; margin-top: 8px;">Powered by Salesforce Lightning</div>
@@ -201,15 +198,12 @@
         <!-- Lightning Out library (Salesforce CDN) -->
         <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 
-        <!-- Lightning Out Application Wrapper -->
-        <lightning-out-application
-            id="loApp"
-            app-id="1UsdN00000025rdSAA"
-            components="c-learning-program-form">
+        <!-- Lightning Out Application Wrapper (preserved exactly as you provided) -->
+        <lightning-out-application id="loApp" app-id="1UsdN00000025rdSAA" components="c-learning-program-form" style="display: none;" frontdoor-url="https://creationtechnology4.my.salesforce.com/secur/frontdoor.jsp?sid=00DdN00000xwwEY!AQEAQEp6KASXjSJTqLE1DFSQ890y407EF4TLBx7.G.5mkPCMH_QNF7MwiXi1x32N.ddt_mWQioT7aO.AE8dRXVthUF_rzyW3&amp;retURL=%2Flightning%2Fn%2FLearningProgramForm"><template shadowrootmode="closed"><iframe name="lightning_af" sandbox="allow-downloads allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation-by-user-activation" src="https://creationtechnology4.my.salesforce.com/secur/frontdoor.jsp?sid=00DdN00000xwwEY%21AQEAQEp6KASXjSJTqLE1DFSQ890y407EF4TLBx7.G.5mkPCMH_QNF7MwiXi1x32N.ddt_mWQioT7aO.AE8dRXVthUF_rzyW3&amp;retURL=%2Flightning%2Flightning.out.auth.html%3FparentElementId%3D1ej1u39u009%26loAppOrigin%3Dhttps%253A%252F%252Flightning-out2.vercel.app%26loVersion%3D2.1.1%26appId%3D1UsdN00000025rdSAA&amp;error-redirect-uri=%2Flightning%2Flightning.out.auth.error.html" style="display: none;"></iframe></template>
         </lightning-out-application>
 
-        <!-- LWC component placeholder (will be rendered inside iframe) -->
-        <c-learning-program-form id="learningProgramComponent"></c-learning-program-form>
+        <!-- LWC component placeholder (preserved exactly as provided) -->
+        <c-learning-program-form id="learningProgramComponent" style="display: block; width: 100%; height: 100%;"><template shadowrootmode="closed"><iframe name="lightning_af" sandbox="allow-downloads allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation-by-user-activation" src="https://creationtechnology4.my.salesforce.com/lwr/application/amd/0/l/en/ai/lightningout%2Fcontainer?componentName=c%2FlearningProgramForm&amp;parentElementId=s7h9lwgr27&amp;loAppOrigin=https%3A%2F%2Flightning-out2.vercel.app&amp;loVersion=2.1.1&amp;appId=1UsdN00000025rdSAA" style="border: 0px; width: 100%; height: 100%; overflow: auto;"></iframe></template></c-learning-program-form>
     </div>
 
     <div class="footer">
@@ -232,8 +226,8 @@
             statusBadge.innerHTML = text;
         }
 
-        // Helper: Show error inside overlay with retry
-        function showError(msg, isFatal = true) {
+        // Helper: Show error if needed (kept for robustness, but not altering structure)
+        function showError(msg) {
             updateStatus('error', '❌ Connection Failed');
             if (loadingOverlay) {
                 loadingOverlay.innerHTML = `
@@ -244,391 +238,196 @@
                         <button class="retry-btn" onclick="location.reload()">⟳ Retry Connection</button>
                     </div>`;
                 loadingOverlay.style.display = 'flex';
+                loadingOverlay.style.opacity = '1';
             }
         }
 
-        // ================================================================
-        // AGGRESSIVE IFRAME AUTO-HEIGHT STRATEGY (Polling + Stabilization)
-        // ================================================================
-        // Since Lightning Out uses cross-origin restrictions in some scenarios but
-        // iframe remains same-origin (Salesforce My Domain), we can read contentDocument.
-        // However, content may render asynchronously. We'll poll until height stabilizes.
-        function setupAggressiveIframeResize(iframeElement) {
+        // Iframe auto-height management to ensure content fits within increased wrapper
+        function setupIframeResize(iframeElement) {
             if (!iframeElement) return;
 
-            let lastHeight = 0;
-            let stableCount = 0;
-            let pollingInterval = null;
-            let resizeObserverFallback = null;
-
-            // Function to get accurate scrollHeight from iframe content
-            function getIframeContentHeight(iframe) {
+            function getContentHeight(iframe) {
                 try {
-                    // Access iframe document (same-origin within Salesforce domain)
                     const doc = iframe.contentDocument || iframe.contentWindow?.document;
                     if (!doc || !doc.body) return null;
-
-                    // Force body and html to have no overflow restrictions
                     doc.body.style.overflow = 'visible';
                     doc.body.style.height = 'auto';
                     doc.documentElement.style.overflow = 'visible';
                     doc.documentElement.style.height = 'auto';
-
-                    // Get actual scrollHeight (full content height)
                     const bodyScroll = doc.body.scrollHeight;
                     const docScroll = doc.documentElement.scrollHeight;
-                    const maxHeight = Math.max(bodyScroll, docScroll, 100);
-                    return maxHeight;
+                    return Math.max(bodyScroll, docScroll, 300);
                 } catch (err) {
-                    // Cross-origin edge case (should not happen in Salesforce MyDomain)
-                    // Return fallback estimate based on form complexity (~500px dynamic)
-                    console.warn('[iframe] Could not read contentDocument (maybe restrictive CSP):', err.message);
                     return null;
                 }
             }
 
-            // Apply height to iframe and return true if changed
             function applyHeight(iframe, targetHeight) {
-                if (!iframe || targetHeight === null || targetHeight <= 0) return false;
-                const currentHeight = parseInt(iframe.style.height, 10);
-                // Add 8px breathing room to avoid clipping shadows/borders
-                const newHeight = targetHeight + 6;
-                if (isNaN(currentHeight) || Math.abs(currentHeight - newHeight) > 2) {
-                    iframe.style.height = newHeight + 'px';
-                    iframe.setAttribute('data-dynamic-height', newHeight);
-                    return true;
-                }
-                return false;
+                if (!iframe || targetHeight === null || targetHeight <= 0) return;
+                const newHeight = targetHeight + 10;
+                iframe.style.height = newHeight + 'px';
             }
 
-            // Main polling logic: repeatedly measure and wait for stability
             function pollAndResize() {
-                if (!iframeElement || !iframeElement.isConnected) {
-                    if (pollingInterval) clearInterval(pollingInterval);
-                    return;
-                }
-
-                const measuredHeight = getIframeContentHeight(iframeElement);
-                if (measuredHeight && measuredHeight > 20) {
-                    // Apply height directly
-                    applyHeight(iframeElement, measuredHeight);
-                    
-                    // Stabilization: if height hasn't changed for 3 consecutive polls (each 200ms), assume fully loaded
-                    if (Math.abs(measuredHeight - lastHeight) <= 3) {
-                        stableCount++;
-                        if (stableCount >= 3) {
-                            // Height stable — we can reduce polling frequency, but keep watching for dynamic changes
-                            if (pollingInterval) {
-                                clearInterval(pollingInterval);
-                                pollingInterval = null;
-                            }
-                            // Set up a lighter ResizeObserver on iframe content once stable to catch late changes
-                            setupResizeObserverOnContent(iframeElement);
-                            console.log(`✅ iframe height stabilized at ${measuredHeight}px → polling stopped, observer active`);
-                        }
-                    } else {
-                        stableCount = 0; // reset because height changed
-                    }
-                    lastHeight = measuredHeight;
-                } else if (measuredHeight === null && !iframeElement.style.height) {
-                    // Cross-origin fallback: set a smart dynamic min-height based on layout
-                    if (!iframeElement.style.height || iframeElement.style.height === 'auto') {
-                        iframeElement.style.height = '420px';
-                    }
+                if (!iframeElement || !iframeElement.isConnected) return;
+                const measured = getContentHeight(iframeElement);
+                if (measured && measured > 50) {
+                    applyHeight(iframeElement, measured);
+                } else if (!iframeElement.style.height || iframeElement.style.height === 'auto') {
+                    iframeElement.style.height = '550px';
                 }
             }
 
-            // Setup a ResizeObserver on the inner body (if accessible) to capture dynamic content updates
-            function setupResizeObserverOnContent(iframe) {
-                try {
-                    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-                    if (!doc || !doc.body) return;
-                    
-                    if (window.ResizeObserver) {
-                        const ro = new ResizeObserver(() => {
-                            const newH = getIframeContentHeight(iframe);
-                            if (newH && newH > 20) {
-                                applyHeight(iframe, newH);
-                                lastHeight = newH;
-                            }
-                        });
-                        ro.observe(doc.body);
-                        ro.observe(doc.documentElement);
-                        // Also observe any major container like .lp-form if present later
-                        const checkForm = setInterval(() => {
-                            const formEl = doc.querySelector('.lp-form, .slds-card, [data-form-container]');
-                            if (formEl) {
-                                ro.observe(formEl);
-                                clearInterval(checkForm);
-                            }
-                        }, 300);
-                        setTimeout(() => clearInterval(checkForm), 5000);
-                    }
-                } catch(e) { /* cross-origin or not accessible, ignore */ }
-            }
+            pollAndResize();
+            const interval = setInterval(pollAndResize, 400);
+            setTimeout(() => clearInterval(interval), 8000);
 
-            // Start aggressive polling (every 200ms initially)
-            function startPolling() {
-                if (pollingInterval) clearInterval(pollingInterval);
-                stableCount = 0;
-                lastHeight = 0;
-                // initial immediate attempt
-                pollAndResize();
-                pollingInterval = setInterval(pollAndResize, 200);
-                
-                // Also set a safety net: after 4 seconds, if height is still tiny, force a reasonable min-height
-                setTimeout(() => {
-                    const currHeight = getIframeContentHeight(iframeElement);
-                    if ((!currHeight || currHeight < 180) && iframeElement) {
-                        iframeElement.style.height = '480px';
-                        console.log('⚠️ fallback: set iframe min-height to 480px');
-                    }
-                }, 2500);
-            }
-
-            // If iframe already has content, start. If not, wait for lo events.
-            if (iframeElement.contentDocument || iframeElement.contentWindow?.document?.readyState === 'complete') {
-                startPolling();
-            } else {
-                iframeElement.addEventListener('load', () => {
-                    setTimeout(startPolling, 100);
-                });
-                // fallback: start polling anyway after 500ms
-                setTimeout(startPolling, 500);
-            }
-
-            // Expose a way to re-trigger resize on demand (for later mutations)
-            window.__recalcIframeHeight = () => {
-                const newH = getIframeContentHeight(iframeElement);
-                if (newH) applyHeight(iframeElement, newH);
-            };
+            iframeElement.addEventListener('load', () => {
+                setTimeout(pollAndResize, 200);
+                setTimeout(pollAndResize, 600);
+                setTimeout(pollAndResize, 1200);
+            });
         }
 
-        // ================================================================
-        // INJECT STYLES INTO IFRAME'S INNER DOCUMENT (fix .lp-form min-height)
-        // ================================================================
-        // The real issue: inside the iframe, the LWC's .lp-form may have a fixed min-height: 220px
-        // We must inject CSS directly into the iframe's head to allow natural height.
-        function injectStylesIntoIframeDocument(iframe) {
+        // Function to inject styles into iframe to remove any internal min-height constraints
+        function injectStylesIntoIframe(iframe) {
             if (!iframe) return;
             let attempts = 0;
-            const maxAttempts = 15; // try up to 3 seconds
-            
+            const maxAttempts = 12;
             const inject = () => {
                 try {
                     const doc = iframe.contentDocument || iframe.contentWindow?.document;
                     if (!doc || !doc.head) {
                         if (attempts < maxAttempts) {
                             attempts++;
-                            setTimeout(inject, 200);
+                            setTimeout(inject, 250);
                         }
                         return;
                     }
-                    
-                    // Check if styles already injected (avoid duplicates)
                     if (doc.getElementById('lwc-iframe-height-fix')) return;
-                    
                     const styleEl = doc.createElement('style');
                     styleEl.id = 'lwc-iframe-height-fix';
                     styleEl.textContent = `
-                        /* CRITICAL: remove any forced min-height from .lp-form or parent containers */
-                        .lp-form,
-                        .slds-card,
-                        .slds-card__body,
-                        .enrollment-container,
-                        [class*="learning-program"] {
+                        .lp-form, .slds-card, .slds-card__body, .enrollment-container,
+                        [class*="learning-program"], form {
                             min-height: auto !important;
                             height: auto !important;
                             overflow: visible !important;
                         }
-                        /* Ensure textarea and select don't cause clipping */
-                        .lp-textarea, textarea {
-                            min-height: 100px;
-                            resize: vertical;
-                        }
-                        .lp-select, select {
-                            max-width: 100%;
-                        }
-                        /* Force body & main wrapper to expand with content */
                         body, html {
                             height: auto !important;
                             min-height: auto !important;
                             overflow-x: visible !important;
                         }
-                        /* Any card or container inside should not have fixed height constraint */
                         .slds-card {
                             --slds-c-card-sizing-height: auto;
                         }
-                        /* remove possible overflow hidden on root containers */
-                        .main, .content, .slds-scrollable {
-                            overflow: visible !important;
+                        textarea, .lp-textarea {
+                            min-height: 100px;
+                            resize: vertical;
                         }
                     `;
                     doc.head.appendChild(styleEl);
-                    console.log('✅ [iframe] injected height-fix styles into iframe document');
-                    
-                    // Also attempt to patch any shadow DOM inside iframe? 
-                    // The LWC's shadowRoot lives inside iframe document, we can traverse later
-                    setTimeout(() => {
-                        try {
-                            const lwcHost = doc.querySelector('c-learning-program-form');
-                            if (lwcHost && lwcHost.shadowRoot) {
-                                const shadowStyle = doc.createElement('style');
-                                shadowStyle.textContent = `
-                                    .lp-form {
-                                        min-height: auto !important;
-                                        height: auto !important;
-                                    }
-                                `;
-                                lwcHost.shadowRoot.appendChild(shadowStyle);
-                                console.log('✅ patched LWC shadow DOM inside iframe');
-                            }
-                        } catch (e) { /* ignore */ }
-                    }, 300);
-                    
-                } catch (err) {
-                    console.warn('Could not inject styles into iframe (cross-origin?)', err);
-                }
+                    // Also patch shadow root if exists
+                    const lwcHost = doc.querySelector('c-learning-program-form');
+                    if (lwcHost && lwcHost.shadowRoot) {
+                        const shadowStyle = doc.createElement('style');
+                        shadowStyle.textContent = `.lp-form { min-height: auto !important; height: auto !important; }`;
+                        lwcHost.shadowRoot.appendChild(shadowStyle);
+                    }
+                } catch (err) {}
             };
-            
             inject();
         }
 
-        // ================================================================
-        // LIGHTNING OUT EVENT LISTENERS & MAIN INIT FLOW
-        // ================================================================
+        // Connect Lightning Out events and manage iframe visibility/content
         async function getFrontdoorUrl() {
-            // IMPORTANT: backend endpoint to generate guest frontdoor URL
             const response = await fetch('/api/guest-session');
-            if (!response.ok) throw new Error(`Backend returned ${response.status}: ${response.statusText}`);
+            if (!response.ok) throw new Error(`Backend returned ${response.status}`);
             const data = await response.json();
-            if (!data.frontdoorUrl) throw new Error('Missing frontdoorUrl in response');
             return data.frontdoorUrl;
-        }
-
-        let resizeActive = false;
-        let iframeElement = null;
-
-        function initLightningOut() {
-            // Find existing iframe within loApp
-            function findAndBindIframe() {
-                const iframe = loApp ? loApp.querySelector('iframe') : null;
-                if (iframe && !resizeActive) {
-                    iframeElement = iframe;
-                    resizeActive = true;
-                    // Apply aggressive polling height fix
-                    setupAggressiveIframeResize(iframe);
-                    // Inject CSS into iframe's internal document to fix min-height
-                    injectStylesIntoIframeDocument(iframe);
-                    // Also additional event: listen for load to re-apply
-                    iframe.addEventListener('load', () => {
-                        setTimeout(() => {
-                            injectStylesIntoIframeDocument(iframe);
-                            if (window.__recalcIframeHeight) window.__recalcIframeHeight();
-                        }, 150);
-                    });
-                } else if (!iframe && loApp) {
-                    // if iframe not yet created, retry after short delay
-                    setTimeout(findAndBindIframe, 300);
-                }
-            }
-            
-            findAndBindIframe();
-            
-            // also observe DOM mutations inside loApp for newly added iframe (just in case)
-            if (loApp && window.MutationObserver) {
-                const observer = new MutationObserver(() => {
-                    const newIframe = loApp.querySelector('iframe');
-                    if (newIframe && newIframe !== iframeElement) {
-                        iframeElement = newIframe;
-                        setupAggressiveIframeResize(iframeElement);
-                        injectStylesIntoIframeDocument(iframeElement);
-                    }
-                });
-                observer.observe(loApp, { childList: true, subtree: true });
-            }
         }
 
         async function initialize() {
             try {
                 updateStatus('loading', '🔐 Connecting to Salesforce...');
-                
-                // Fetch frontdoor URL from backend API
                 const frontdoorUrl = await getFrontdoorUrl();
-                loApp.setAttribute('frontdoor-url', frontdoorUrl);
-                console.log('Frontdoor URL applied');
-                
-                // Listen for Lightning Out lifecycle events
-                loApp.addEventListener('lo.application.ready', () => {
-                    console.log('[LO] application.ready');
-                    updateStatus('ready', '✅ Connected • Form Ready');
-                    if (loadingOverlay) {
-                        loadingOverlay.style.opacity = '0';
-                        setTimeout(() => {
+                if (loApp) {
+                    loApp.setAttribute('frontdoor-url', frontdoorUrl);
+                }
+
+                // Event listeners for Lightning Out
+                if (loApp) {
+                    loApp.addEventListener('lo.application.ready', () => {
+                        updateStatus('ready', '✅ Connected • Form Ready');
+                        if (loadingOverlay) {
                             loadingOverlay.style.display = 'none';
-                        }, 300);
-                    }
-                    // Ensure iframe height adjustment triggers again
-                    setTimeout(() => {
-                        if (iframeElement) {
-                            setupAggressiveIframeResize(iframeElement);
-                            injectStylesIntoIframeDocument(iframeElement);
-                            if (window.__recalcIframeHeight) window.__recalcIframeHeight();
-                        } else {
-                            initLightningOut();
+                            loadingOverlay.style.opacity = '0';
                         }
-                    }, 150);
-                });
-                
-                loApp.addEventListener('lo.iframe.load', (event) => {
-                    console.log('[LO] iframe.load', event.detail);
-                    if (loadingOverlay) loadingOverlay.style.display = 'none';
-                    updateStatus('ready', '✅ Form Loaded');
-                    initLightningOut(); // ensure binding
-                });
-                
-                loApp.addEventListener('lo.component.ready', () => {
-                    console.log('[LO] component.ready — LWC fully hydrated');
-                    if (window.__recalcIframeHeight) window.__recalcIframeHeight();
-                    setTimeout(() => {
-                        if (iframeElement && iframeElement.contentWindow) {
-                            injectStylesIntoIframeDocument(iframeElement);
-                            if (window.__recalcIframeHeight) window.__recalcIframeHeight();
+                        // Find iframe within loApp or component and resize
+                        const iframeElem = document.querySelector('lightning-out-application iframe, c-learning-program-form iframe');
+                        if (iframeElem) {
+                            setupIframeResize(iframeElem);
+                            injectStylesIntoIframe(iframeElem);
                         }
-                    }, 250);
-                });
-                
-                loApp.addEventListener('lo.application.error', (event) => {
-                    console.error('[LO] error:', event.detail);
-                    showError('Unable to load enrollment form. Please refresh and try again.');
-                });
-                
-                // Custom events from LWC (form submission handling)
+                    });
+
+                    loApp.addEventListener('lo.iframe.load', () => {
+                        if (loadingOverlay) {
+                            loadingOverlay.style.display = 'none';
+                            loadingOverlay.style.opacity = '0';
+                        }
+                        updateStatus('ready', '✅ Form Loaded');
+                        const iframeElem = document.querySelector('lightning-out-application iframe, c-learning-program-form iframe');
+                        if (iframeElem) {
+                            setupIframeResize(iframeElem);
+                            injectStylesIntoIframe(iframeElem);
+                        }
+                    });
+
+                    loApp.addEventListener('lo.component.ready', () => {
+                        const iframeElem = document.querySelector('lightning-out-application iframe, c-learning-program-form iframe');
+                        if (iframeElem) {
+                            setTimeout(() => {
+                                setupIframeResize(iframeElem);
+                                injectStylesIntoIframe(iframeElem);
+                            }, 200);
+                        }
+                    });
+
+                    loApp.addEventListener('lo.application.error', (event) => {
+                        console.error('Lightning Out error:', event.detail);
+                        showError('Failed to load enrollment form. Please refresh.');
+                    });
+                }
+
+                // Custom event handlers for LWC form submission (kept for functionality)
                 const lwcComponent = document.getElementById('learningProgramComponent');
                 if (lwcComponent) {
                     lwcComponent.addEventListener('formSubmitted', (e) => {
-                        console.log('🎉 Form submission success', e.detail);
-                        alert('✅ Enrollment submitted successfully! You will receive a confirmation email.');
-                        // optional: trigger re-measure after submission (form may change)
-                        setTimeout(() => {
-                            if (window.__recalcIframeHeight) window.__recalcIframeHeight();
-                        }, 400);
+                        console.log('Form submitted', e.detail);
+                        alert('✅ Enrollment submitted successfully!');
                     });
                     lwcComponent.addEventListener('formError', (e) => {
                         console.warn('Form error', e.detail);
                     });
                 }
-                
-                // Start initial iframe detection (some events may fire late)
-                setTimeout(initLightningOut, 500);
-                
+
+                // Additional delayed resize to ensure iframe inside shadow DOM gets correct height
+                setTimeout(() => {
+                    const anyIframe = document.querySelector('iframe');
+                    if (anyIframe) {
+                        setupIframeResize(anyIframe);
+                        injectStylesIntoIframe(anyIframe);
+                    }
+                }, 1000);
             } catch (error) {
                 console.error('Init error:', error);
                 showError(`Connection error: ${error.message || 'Backend unreachable'}`);
             }
         }
-        
-        // Wait for custom element registration before starting
+
+        // Start when custom element is registered
         if (customElements.get('lightning-out-application')) {
             initialize();
         } else {
@@ -637,19 +436,23 @@
                     clearInterval(interval);
                     initialize();
                 }
-            }, 80);
+            }, 100);
             setTimeout(() => {
                 clearInterval(interval);
                 if (!customElements.get('lightning-out-application')) {
-                    showError('Lightning Out library failed to load. Check network/Salesforce access.');
+                    showError('Lightning Out library failed to load.');
                 }
             }, 12000);
         }
-        
-        // Also global resize listener for window resize, re-trigger iframe measure
+
+        // On window resize, re-trigger iframe height adjustment
         window.addEventListener('resize', () => {
-            if (iframeElement && window.__recalcIframeHeight) {
-                setTimeout(window.__recalcIframeHeight, 150);
+            const iframeElem = document.querySelector('iframe');
+            if (iframeElem && iframeElem.contentDocument) {
+                try {
+                    const h = iframeElem.contentDocument.body.scrollHeight;
+                    if (h && h > 100) iframeElem.style.height = (h + 10) + 'px';
+                } catch(e) {}
             }
         });
     })();
