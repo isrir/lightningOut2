@@ -49,3 +49,9 @@ c-learning-program-form {
     height: auto !important;
     overflow: visible !important;
 }
+
+.lp-form {
+    min-height: 800px !important;
+    height: auto !important;
+    overflow: visible !important;
+}
