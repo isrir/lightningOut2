@@ -151,6 +151,15 @@
             width: 100%;
             min-height: 400px;
         }
+        
+        /* Force iframe visibility */
+        iframe {
+            display: block !important;
+            width: 100% !important;
+            min-height: 400px !important;
+            border: none !important;
+            visibility: visible !important;
+        }
     </style>
 </head>
 <body>
@@ -289,6 +298,39 @@
             }
         }
 
+        // Force iframe visibility
+        function forceIframeVisibility() {
+            setTimeout(() => {
+                // Check in shadow DOM
+                if (lightningOutApp && lightningOutApp.shadowRoot) {
+                    const iframe = lightningOutApp.shadowRoot.querySelector('iframe');
+                    if (iframe) {
+                        addDebug('🎯 Found iframe in shadowRoot, forcing visibility');
+                        iframe.style.display = 'block';
+                        iframe.style.width = '100%';
+                        iframe.style.minHeight = '400px';
+                        iframe.style.border = 'none';
+                        iframe.style.visibility = 'visible';
+                    } else {
+                        addDebug('No iframe found in shadowRoot yet');
+                    }
+                }
+                
+                // Also check in regular DOM
+                const iframes = document.querySelectorAll('iframe');
+                if (iframes.length > 0) {
+                    addDebug(`🎯 Found ${iframes.length} iframe(s) in DOM, forcing visibility`);
+                    iframes.forEach(iframe => {
+                        iframe.style.display = 'block';
+                        iframe.style.width = '100%';
+                        iframe.style.minHeight = '400px';
+                        iframe.style.border = 'none';
+                        iframe.style.visibility = 'visible';
+                    });
+                }
+            }, 100);
+        }
+
         // Send message TO the component
         function sendMessageToComponent(message) {
             if (!learningProgramComponent) {
@@ -361,7 +403,7 @@
                 
                 addDebug('Created lightning-out-application element');
                 
-                // Step 3: Create component element separately (don't append yet)
+                // Step 3: Create component element
                 learningProgramComponent = document.createElement('c-learning-program-form');
                 learningProgramComponent.setAttribute('style', `
                     --slds-c-card-color-background: #ffffff;
@@ -371,7 +413,7 @@
                 
                 addDebug('Created c-learning-program-form component');
                 
-                // Step 4: Set up event listeners on the component
+                // Step 4: Set up component event listeners
                 learningProgramComponent.addEventListener('componentReady', (event) => {
                     addDebug('✅ Component ready event', event.detail);
                     showHostMessage('Component is ready!');
@@ -404,16 +446,20 @@
                     isAppReady = true;
                     loadingDiv.style.display = 'none';
                     showHostMessage('Application loaded successfully!');
+                    forceIframeVisibility();
                 });
                 
                 lightningOutApp.addEventListener('lo.iframe.load', (event) => {
                     addDebug('📄 lo.iframe.load - Iframe loaded', { origin: event.detail });
                     loadingDiv.style.display = 'none';
+                    forceIframeVisibility();
+                    setControlsEnabled(true);
                 });
                 
                 lightningOutApp.addEventListener('lo.component.ready', (event) => {
                     addDebug('✅ lo.component.ready - Component ready', event.detail);
                     setControlsEnabled(true);
+                    forceIframeVisibility();
                 });
                 
                 lightningOutApp.addEventListener('lo.application.error', (event) => {
@@ -431,13 +477,11 @@
                     showHostMessage('Iframe failed to load', true);
                 });
                 
-                // Step 6: CRITICAL - Append in correct order to avoid "Should not have child nodes" error
-                // First append the app to container, then append component to app
-                // This ensures connectedCallback fires after both are in DOM
+                // Step 6: Append elements
                 loContainer.appendChild(lightningOutApp);
                 lightningOutApp.appendChild(learningProgramComponent);
                 
-                addDebug('Components added to DOM in correct order');
+                addDebug('Components added to DOM');
                 
                 // Step 7: Set up button handlers
                 sendMessageBtn.onclick = () => {
@@ -454,29 +498,19 @@
                     showHostMessage('Refresh triggered');
                 };
                 
-                addDebug('Initialization complete, waiting for iframe...');
-                
-                // Timeout fallback
-                setTimeout(() => {
-                    if (loadingDiv.style.display !== 'none') {
-                        if (lightningOutApp && lightningOutApp.shadowRoot) {
-                            const iframe = lightningOutApp.shadowRoot.querySelector('iframe');
-                            if (iframe) {
-                                addDebug('Iframe found in shadowRoot, hiding loading');
-                                loadingDiv.style.display = 'none';
-                                setControlsEnabled(true);
-                            } else {
-                                addDebug('⚠️ No iframe found in shadowRoot after timeout');
-                                addDebug('ShadowRoot exists: ' + !!lightningOutApp.shadowRoot);
-                                if (lightningOutApp.shadowRoot) {
-                                    addDebug('ShadowRoot children: ' + lightningOutApp.shadowRoot.children.length);
-                                }
-                            }
-                        } else {
-                            addDebug('⚠️ No shadowRoot available after timeout');
-                        }
+                // Step 8: Periodically check for iframe visibility
+                const visibilityInterval = setInterval(() => {
+                    if (loadingDiv.style.display === 'none') {
+                        clearInterval(visibilityInterval);
+                    } else {
+                        forceIframeVisibility();
                     }
-                }, 30000);
+                }, 2000);
+                
+                // Clear interval after 30 seconds
+                setTimeout(() => clearInterval(visibilityInterval), 30000);
+                
+                addDebug('Initialization complete');
                 
             } catch (error) {
                 addDebug('❌ Initialization error', { message: error.message, stack: error.stack });
@@ -484,14 +518,17 @@
             }
         }
         
-        // Wait for custom element to be registered
-        function waitForCustomElement() {
-            return new Promise((resolve) => {
-                if (customElements.get('lightning-out-application')) {
-                    addDebug('lightning-out-application already registered');
-                    resolve();
-                } else {
-                    addDebug('Waiting for lightning-out-application registration...');
+        // Wait for custom element and start
+        async function start() {
+            addDebug('Starting Lightning Out 2.0 application...');
+            
+            // Wait for custom element registration
+            if (customElements.get('lightning-out-application')) {
+                addDebug('lightning-out-application already registered');
+                await init();
+            } else {
+                addDebug('Waiting for registration...');
+                await new Promise(resolve => {
                     const checkInterval = setInterval(() => {
                         if (customElements.get('lightning-out-application')) {
                             clearInterval(checkInterval);
@@ -499,15 +536,9 @@
                             resolve();
                         }
                     }, 100);
-                }
-            });
-        }
-        
-        // Start the application
-        async function start() {
-            addDebug('Starting Lightning Out 2.0 application...');
-            await waitForCustomElement();
-            await init();
+                });
+                await init();
+            }
         }
         
         start();
