@@ -13,43 +13,117 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Salesforce Sans', Arial, sans-serif;
-            background: #f3f3f3;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
 
+        /* External page element 1 */
         .header {
             background: white;
-            border-radius: 8px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 30px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-left: 4px solid #0070d2;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         }
 
         .header h1 {
-            color: #1a1a1a;
-            font-size: 24px;
-            margin-bottom: 8px;
+            color: #0070d2;
+            font-size: 28px;
+            margin-bottom: 10px;
         }
 
         .header p {
             color: #666;
-            font-size: 14px;
+            font-size: 16px;
         }
 
-        .status {
+        /* Component container */
+        .component-wrapper {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .component-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #0070d2;
+        }
+
+        /* External page element 2 */
+        .footer {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        /* Loading state */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 8px;
+            z-index: 10;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #0070d2;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Required Lightning Out styles */
+        lightning-out-application {
+            display: block;
+            width: 100%;
+            min-height: 500px;
+        }
+
+        iframe {
+            display: block !important;
+            width: 100% !important;
+            min-height: 500px !important;
+            border: none !important;
+        }
+
+        .status-badge {
             display: inline-block;
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
-            margin-top: 12px;
+            margin-top: 10px;
         }
 
         .status-loading {
@@ -66,87 +140,72 @@
             background: #ffebee;
             color: #c62828;
         }
-
-        #component-container {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            min-height: 500px;
-            position: relative;
-        }
-
-        .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255,255,255,0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            border-radius: 8px;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #e0e0e0;
-            border-top-color: #0070d2;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 12px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        lightning-out-application {
-            display: block;
-            width: 100%;
-            min-height: 500px;
-        }
-
-        iframe {
-            display: block !important;
-            width: 100% !important;
-            min-height: 500px !important;
-            border: none !important;
-        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- External Page Element 1: Header -->
         <div class="header">
             <h1>📚 Learning Program Enrollment</h1>
-            <p>Powered by Salesforce Lightning Out 2.0</p>
-            <div id="status" class="status status-loading">🔄 Loading...</div>
+            <p>Complete the form below to enroll in our learning program</p>
+            <div id="statusBadge" class="status-badge status-loading">🔄 Connecting to Salesforce...</div>
         </div>
 
-        <div id="component-container">
+        <!-- Component Container with embedded Lightning Out components -->
+        <div class="component-wrapper" style="position: relative;">
+            <div class="component-title">🎓 Enrollment Form</div>
+            
+            <!-- Loading overlay -->
             <div id="loadingOverlay" class="loading-overlay">
                 <div class="spinner"></div>
-                <div>Connecting to Salesforce...</div>
+                <div>Loading enrollment form...</div>
+                <div style="font-size: 12px; color: #888; margin-top: 8px;">Establishing secure connection</div>
             </div>
-            <div id="lo-container"></div>
+
+            <!-- Lightning Out Library -->
+            <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
+
+            <!-- Lightning Out App Wrapper -->
+            <!-- The frontdoor-url is set at runtime via API -->
+            <lightning-out-application 
+                id="loApp"
+                app-id="1UsdN00000025rdSAA"
+                components="c-learning-program-form">
+            </lightning-out-application>
+
+            <!-- Your Component - position determines render order -->
+            <!-- Component with custom styling using CSS custom properties -->
+            <c-learning-program-form 
+                id="learningProgramComponent"
+                style="
+                    --slds-c-card-color-background: #ffffff;
+                    --slds-c-card-text-color: #1a1a1a;
+                    --slds-c-card-color-border: #0070d2;
+                    --custom-primary-color: #0070d2;
+                ">
+            </c-learning-program-form>
+        </div>
+
+        <!-- External Page Element 2: Footer -->
+        <div class="footer">
+            <p>© 2024 Learning Program. Powered by Salesforce Lightning Out 2.0</p>
         </div>
     </div>
 
-    <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
-
     <script>
-        const statusDiv = document.getElementById('status');
+        // Get elements
+        const loApp = document.getElementById('loApp');
+        const component = document.getElementById('learningProgramComponent');
         const loadingOverlay = document.getElementById('loadingOverlay');
-        const loContainer = document.getElementById('lo-container');
+        const statusBadge = document.getElementById('statusBadge');
 
+        // Update status function
         function updateStatus(status, text) {
-            statusDiv.className = `status status-${status}`;
-            statusDiv.innerHTML = text;
+            statusBadge.className = `status-badge status-${status}`;
+            statusBadge.innerHTML = text;
         }
 
+        // Get frontdoor URL from your backend
         async function getFrontdoorUrl() {
             try {
                 const response = await fetch('/api/guest-session');
@@ -158,71 +217,73 @@
             }
         }
 
+        // Initialize Lightning Out
         async function init() {
             try {
-                // Get frontdoor URL
+                // Set frontdoor URL at runtime (as per documentation)
                 const frontdoorUrl = await getFrontdoorUrl();
+                loApp.setAttribute('frontdoor-url', frontdoorUrl);
                 
-                // Clear container
-                loContainer.innerHTML = '';
-                
-                // Create app wrapper
-                const app = document.createElement('lightning-out-application');
-                app.setAttribute('app-id', '1UsdN00000025rdSAA');
-                app.setAttribute('components', 'c-learning-program-form');
-                app.setAttribute('frontdoor-url', frontdoorUrl);
-                app.style.display = 'block';
-                app.style.width = '100%';
-                app.style.minHeight = '500px';
-                
-                // Create component
-                const component = document.createElement('c-learning-program-form');
-                component.setAttribute('style', `
-                    --slds-c-card-color-background: #ffffff;
-                    --slds-c-card-text-color: #1a1a1a;
-                    --slds-c-card-color-border: #0070d2;
-                `);
-                
+                console.log('Frontdoor URL set, initializing...');
+
                 // App event listeners
-                app.addEventListener('lo.application.ready', () => {
-                    console.log('✅ App ready');
+                loApp.addEventListener('lo.application.ready', () => {
+                    console.log('✅ Application ready');
                     updateStatus('ready', '✅ Connected');
                     loadingOverlay.style.display = 'none';
                 });
-                
-                app.addEventListener('lo.iframe.load', (e) => {
-                    console.log('✅ Iframe loaded from:', e.detail);
+
+                loApp.addEventListener('lo.iframe.load', (event) => {
+                    console.log('✅ Iframe loaded from:', event.detail);
                     loadingOverlay.style.display = 'none';
                 });
-                
-                app.addEventListener('lo.component.ready', () => {
+
+                loApp.addEventListener('lo.component.ready', () => {
                     console.log('✅ Component ready');
                 });
-                
-                app.addEventListener('lo.application.error', (e) => {
-                    console.error('❌ App error:', e.detail);
-                    updateStatus('error', '❌ Error');
+
+                loApp.addEventListener('lo.application.error', (event) => {
+                    console.error('❌ Application error:', event.detail);
+                    updateStatus('error', '❌ Connection Error');
+                    loadingOverlay.innerHTML = `
+                        <div style="color: #c23934; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
+                            <div>Failed to load enrollment form</div>
+                            <div style="font-size: 12px; margin-top: 8px;">Please check your connection and try again</div>
+                            <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 24px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+                        </div>
+                    `;
                 });
-                
-                // Append to DOM
-                loContainer.appendChild(app);
-                app.appendChild(component);
-                
-                console.log('Component initialization complete');
-                
+
+                // Component event listeners (if your component dispatches events)
+                if (component) {
+                    component.addEventListener('formSubmitted', (event) => {
+                        console.log('Form submitted:', event.detail);
+                        // Handle form submission success
+                        alert('Enrollment submitted successfully!');
+                    });
+
+                    component.addEventListener('formError', (event) => {
+                        console.error('Form error:', event.detail);
+                        // Handle form error
+                    });
+                }
+
             } catch (error) {
-                console.error('Init error:', error);
-                updateStatus('error', '❌ Failed');
+                console.error('Initialization error:', error);
+                updateStatus('error', '❌ Failed to Connect');
                 loadingOverlay.innerHTML = `
                     <div style="color: #c23934; text-align: center;">
-                        <div>Failed to load component</div>
-                        <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 16px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+                        <div style="font-size: 24px; margin-bottom: 12px;">⚠️</div>
+                        <div>Failed to connect to Salesforce</div>
+                        <div style="font-size: 12px; margin-top: 8px;">${error.message}</div>
+                        <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 24px; background: #0070d2; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
                     </div>
                 `;
             }
         }
 
-        // Wait for custom element and start
+        // Wait for custom element to be registered
         if (customElements.get('lightning-out-application')) {
             init();
         } else {
