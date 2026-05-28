@@ -35,34 +35,30 @@
         });
     }
 
-    /* ── Resize the iframe to fit its content ───────────────────────────── */
-    function fixIframeHeight() {
-        const iframe = loApp.querySelector('iframe');
-        if (!iframe) return;
+    
+        function fixIframeHeight() {
+    const iframe = loApp.querySelector('iframe');
+    if (!iframe) return;
 
-        function applyHeight() {
-            try {
-                // Same-origin: read scrollHeight directly
-                const doc = iframe.contentDocument || iframe.contentWindow?.document;
-                if (doc && doc.body) {
-                    doc.body.style.overflow = 'visible';
-                    doc.documentElement.style.overflow = 'visible';
-                    const h = Math.max(
-                        doc.body.scrollHeight,
-                        doc.body.offsetHeight,
-                        doc.documentElement.scrollHeight,
-                        doc.documentElement.offsetHeight
-                    );
-                    if (h > 50) {
-                        iframe.style.height = h + 'px';
-                        iframe.style.minHeight = h + 'px';
-                    }
-                }
-            } catch (e) {
+    // Cross-origin fallback baseline
     iframe.style.height = '700px';
     iframe.style.minHeight = '700px';
+
+    // Watch the mirror element's height — LO2 syncs it from the iframe content
+    const loComp = document.querySelector('c-learning-program-form');
+    if (loComp && window.ResizeObserver) {
+        const ro = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const h = entry.contentRect.height;
+                if (h > 50) {
+                    iframe.style.height = (h + 40) + 'px';
+                    iframe.style.minHeight = (h + 40) + 'px';
+                }
+            }
+        });
+        ro.observe(loComp);
+    }
 }
-        }
 
         // Poll at increasing intervals to catch async Salesforce rendering
         [100, 300, 600, 1000, 1500, 2000, 3000, 5000].forEach(delay =>
