@@ -35,30 +35,40 @@
         });
     }
 
-    
-        function fixIframeHeight() {
-    const iframe = loApp.querySelector('iframe');
-    if (!iframe) return;
+    /* ── Fix iframe height based on content ─────────────────────────────── */
+    function fixIframeHeight() {
+        const iframe = loApp.querySelector('iframe');
+        if (!iframe) return;
 
-    // Cross-origin fallback baseline
-    iframe.style.height = '700px';
-    iframe.style.minHeight = '700px';
+        // Cross-origin fallback baseline
+        iframe.style.height = '700px';
+        iframe.style.minHeight = '700px';
 
-    // Watch the mirror element's height — LO2 syncs it from the iframe content
-    const loComp = document.querySelector('c-learning-program-form');
-    if (loComp && window.ResizeObserver) {
-        const ro = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const h = entry.contentRect.height;
-                if (h > 50) {
-                    iframe.style.height = (h + 40) + 'px';
-                    iframe.style.minHeight = (h + 40) + 'px';
-                }
+        // Apply height function
+        function applyHeight() {
+            if (!iframe) return;
+            
+            // Try to get height from ResizeObserver or fallback
+            const loComp = document.querySelector('c-learning-program-form');
+            if (loComp && loComp.offsetHeight > 50) {
+                iframe.style.height = (loComp.offsetHeight + 40) + 'px';
+                iframe.style.minHeight = (loComp.offsetHeight + 40) + 'px';
             }
-        });
-        ro.observe(loComp);
-    }
-}
+        }
+
+        // Watch the mirror element's height — LO2 syncs it from the iframe content
+        if (loComp && window.ResizeObserver) {
+            const ro = new ResizeObserver(entries => {
+                for (const entry of entries) {
+                    const h = entry.contentRect.height;
+                    if (h > 50) {
+                        iframe.style.height = (h + 40) + 'px';
+                        iframe.style.minHeight = (h + 40) + 'px';
+                    }
+                }
+            });
+            ro.observe(loComp);
+        }
 
         // Poll at increasing intervals to catch async Salesforce rendering
         [100, 300, 600, 1000, 1500, 2000, 3000, 5000].forEach(delay =>
@@ -66,28 +76,29 @@
         );
 
         // Also watch for dynamic content changes
-        if (window.ResizeObserver) {
+        if (window.ResizeObserver && iframe) {
             const ro = new ResizeObserver(() => applyHeight());
             ro.observe(iframe);
         }
 
+        // Listen for postMessage events from iframe
         window.addEventListener('message', (event) => {
-    // Only process messages from the Salesforce iframe
-    if (event.origin !== 'https://creationtechnology4.my.salesforce.com') return;
-    
-    console.log('[HOST] raw message:', JSON.stringify(event.data));
-    
-    if (event.data && event.data.type === 'lp-form-resize') {
-        const h = event.data.height;
-        if (h > 50) {
-            iframe.style.height = h + 'px';
-            iframe.style.minHeight = h + 'px';
-        }
+            // Only process messages from the Salesforce iframe
+            if (event.origin !== 'https://creationtechnology4.my.salesforce.com') return;
+            
+            console.log('[HOST] raw message:', JSON.stringify(event.data));
+            
+            if (event.data && event.data.type === 'lp-form-resize') {
+                const h = event.data.height;
+                if (h > 50) {
+                    iframe.style.height = h + 'px';
+                    iframe.style.minHeight = h + 'px';
+                }
+            }
+        });
     }
-});
 
-    }
-
+    /* ── Apply custom styles to the LWC component ───────────────────────── */
     async function setComponentStyles() {
         const component = await getComponentElement();
         if (component) {
@@ -123,7 +134,6 @@
             });
 
             // 4. Listen for custom events from the component
-            // Need to wait for component to be available
             loApp.addEventListener('lo.component.ready', async (event) => {
                 console.log('[LO2] Component ready');
                 
