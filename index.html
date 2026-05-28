@@ -13,16 +13,13 @@
     </script>
 
     <!-- Lightning Out Application - MUST be self-closing with NO child nodes -->
-    <lightning-out-application 
-        id="loApp"
-        app-id="1UsdN00000025rdSAA"
-        components="c-learning-program-form" />
+    <lightning-out-application
+                id="loApp"
+                app-id="1UsdN00000025rdSAA"
+                components="c-learning-program-form">
+    </lightning-out-application>
 
-    <!-- 
-        IMPORTANT: Do NOT include <c-learning-program-form> as a separate element!
-        The component is automatically instantiated inside the lightning-out-application.
-        If you need to reference the component, you must find it after it's created.
-    -->
+    <c-learning-program-form id="learningProgramComponent"></c-learning-program-form>
 
     <script src="index.js"></script>
 </body>
