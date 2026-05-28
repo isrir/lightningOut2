@@ -7,13 +7,19 @@
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
-    <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
+    <div class="container">
+        <div class="component-wrapper">
+            <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 
-    <lightning-out-application
-        id="loApp"
-        app-id="1UsdN00000025rdSAA"
-        components="c-learning-program-form">
-    </lightning-out-application>
+            <lightning-out-application
+                id="loApp"
+                app-id="1UsdN00000025rdSAA"
+                components="c-learning-program-form">
+            </lightning-out-application>
+
+            <c-learning-program-form id="learningProgramComponent"></c-learning-program-form>
+        </div>
+    </div>
 
     <script src="index.js"></script>
 </body>
