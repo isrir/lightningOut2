@@ -9,11 +9,11 @@ body {
     background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%);
     min-height: 100vh;
     padding: 20px;
+    margin: 0;
 }
 
 .container {
-    max-width: 900px;
-    margin: 0 auto;
+    display: none;
 }
 
 .component-wrapper {
