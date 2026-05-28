@@ -1,55 +1,7 @@
-(function() {
+(function () {
     const loApp = document.getElementById('loApp');
-    const component = document.getElementById('learningProgramComponent');
 
-    function autoSizeIframe(iframe) {
-        if (!iframe) return;
-
-        function applyHeight() {
-            try {
-                const doc = iframe.contentDocument || iframe.contentWindow?.document;
-                if (doc && doc.body) {
-                    doc.body.style.overflow = 'visible';
-                    doc.documentElement.style.overflow = 'visible';
-                    const h = doc.body.scrollHeight || doc.documentElement.scrollHeight;
-                    if (h && h > 0) {
-                        iframe.style.height = h + 'px';
-                    }
-                }
-            } catch (e) {
-                iframe.style.height = '600px';
-            }
-        }
-
-        applyHeight();
-        setTimeout(applyHeight, 300);
-        setTimeout(applyHeight, 800);
-
-        if (window.ResizeObserver) {
-            const ro = new ResizeObserver(() => applyHeight());
-            ro.observe(iframe);
-        }
-    }
-
-    function patchShadowStyles() {
-        try {
-            const host = document.querySelector('c-learning-program-form');
-            if (!host || !host.shadowRoot) return;
-            if (host.shadowRoot.querySelector('#height-patch')) return;
-
-            const style = document.createElement('style');
-            style.id = 'height-patch';
-            style.textContent = `
-                .lp-form, .slds-card {
-                    min-height: auto !important;
-                    height: auto !important;
-                    overflow: visible !important;
-                }
-            `;
-            host.shadowRoot.appendChild(style);
-        } catch (e) {}
-    }
-
+    /* ── Fetch frontdoor URL from your backend ──────────────────────────── */
     async function getFrontdoorUrl() {
         const response = await fetch('/api/guest-session');
         if (!response.ok) throw new Error(`Backend returned ${response.status}`);
@@ -57,37 +9,98 @@
         return data.frontdoorUrl;
     }
 
+    /* ── Resize the iframe to fit its content ───────────────────────────── */
+    function fixIframeHeight() {
+        const iframe = loApp.querySelector('iframe');
+        if (!iframe) return;
+
+        function applyHeight() {
+            try {
+                // Same-origin: read scrollHeight directly
+                const doc = iframe.contentDocument || iframe.contentWindow?.document;
+                if (doc && doc.body) {
+                    doc.body.style.overflow = 'visible';
+                    doc.documentElement.style.overflow = 'visible';
+                    const h = Math.max(
+                        doc.body.scrollHeight,
+                        doc.body.offsetHeight,
+                        doc.documentElement.scrollHeight,
+                        doc.documentElement.offsetHeight
+                    );
+                    if (h > 50) {
+                        iframe.style.setProperty('height', h + 'px', 'important');
+                        iframe.style.setProperty('min-height', h + 'px', 'important');
+                    }
+                }
+            } catch (e) {
+                // Cross-origin fallback: use a safe minimum height
+                iframe.style.setProperty('height', '500px', 'important');
+                iframe.style.setProperty('min-height', '500px', 'important');
+            }
+        }
+
+        // Poll at increasing intervals to catch async Salesforce rendering
+        [100, 300, 600, 1000, 1500, 2000, 3000, 5000].forEach(delay =>
+            setTimeout(applyHeight, delay)
+        );
+
+        // Also watch for dynamic content changes (e.g. program selection)
+        if (window.ResizeObserver) {
+            const ro = new ResizeObserver(() => applyHeight());
+            ro.observe(iframe);
+        }
+
+        // Listen for messages from the iframe (if LWC sends any)
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'lp-form-resize') {
+                const h = event.data.height;
+                if (h > 50) {
+                    iframe.style.setProperty('height', h + 'px', 'important');
+                    iframe.style.setProperty('min-height', h + 'px', 'important');
+                }
+            }
+        });
+    }
+
+    /* ── Main init ──────────────────────────────────────────────────────── */
     async function init() {
         try {
+            // 1. Get session URL from backend
             const frontdoorUrl = await getFrontdoorUrl();
             loApp.setAttribute('frontdoor-url', frontdoorUrl);
 
+            // 2. Application ready — iframe exists and LWC is mounted
             loApp.addEventListener('lo.application.ready', () => {
-                const iframe = loApp.querySelector('iframe');
-                autoSizeIframe(iframe);
-                setTimeout(patchShadowStyles, 400);
+                console.log('[LO2] Application ready');
+                fixIframeHeight();
             });
 
+            // 3. Iframe navigated / reloaded
             loApp.addEventListener('lo.iframe.load', () => {
-                const iframe = loApp.querySelector('iframe');
-                autoSizeIframe(iframe);
+                console.log('[LO2] iframe loaded');
+                fixIframeHeight();
             });
 
-            loApp.addEventListener('lo.application.error', (event) => {
-                console.error('Error:', event.detail);
-            });
-
+            // 4. Handle LWC custom events bubbled to the host
+            const component = document.getElementById('learningProgramComponent');
             if (component) {
-                component.addEventListener('formSubmitted', (event) => {
+                component.addEventListener('formsubmitted', (event) => {
+                    console.log('[LO2] Form submitted', event.detail);
                     alert('Enrollment submitted successfully!');
                 });
             }
 
+            // 5. Error handling
+            loApp.addEventListener('lo.application.error', (event) => {
+                console.error('[LO2] Error:', event.detail);
+            });
+
         } catch (error) {
-            console.error('Init error:', error);
+            console.error('[LO2] Init error:', error);
         }
     }
 
+    /* ── Wait for custom element to be defined before init ─────────────── */
     if (customElements.get('lightning-out-application')) {
         init();
     } else {
