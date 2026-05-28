@@ -74,9 +74,12 @@
             ro.observe(iframe);
         }
 
-        // Listen for messages from the iframe
-window.addEventListener('message', (event) => {
-    console.log('[HOST] raw message:', JSON.stringify(event.data)); // ← ADD THIS LINE
+        window.addEventListener('message', (event) => {
+    // Only process messages from the Salesforce iframe
+    if (event.origin !== 'https://creationtechnology4.my.salesforce.com') return;
+    
+    console.log('[HOST] raw message:', JSON.stringify(event.data));
+    
     if (event.data && event.data.type === 'lp-form-resize') {
         const h = event.data.height;
         if (h > 50) {
