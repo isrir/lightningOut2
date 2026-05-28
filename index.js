@@ -1,5 +1,6 @@
 (function () {
     const loApp = document.getElementById('loApp');
+    const loComp = document.querySelector('c-learning-program-form');
 
     /* ── Fetch frontdoor URL from your backend ──────────────────────────── */
     async function getFrontdoorUrl() {
