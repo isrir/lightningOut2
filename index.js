@@ -75,15 +75,16 @@
         }
 
         // Listen for messages from the iframe
-        window.addEventListener('message', (event) => {
-            if (event.data && event.data.type === 'lp-form-resize') {
-                const h = event.data.height;
-                if (h > 50) {
-                    iframe.style.height = h + 'px';
-                    iframe.style.minHeight = h + 'px';
-                }
-            }
-        });
+window.addEventListener('message', (event) => {
+    console.log('[HOST] raw message:', JSON.stringify(event.data)); // ← ADD THIS LINE
+    if (event.data && event.data.type === 'lp-form-resize') {
+        const h = event.data.height;
+        if (h > 50) {
+            iframe.style.height = h + 'px';
+            iframe.style.minHeight = h + 'px';
+        }
+    }
+});
     }
 
     /* ── Set component styles (alternative method) ──────────────────────── */
