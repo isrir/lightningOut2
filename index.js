@@ -58,10 +58,9 @@
                     }
                 }
             } catch (e) {
-                // Cross-origin fallback: use a safe minimum height
-                iframe.style.height = '500px';
-                iframe.style.minHeight = '500px';
-            }
+    iframe.style.height = '700px';
+    iframe.style.minHeight = '700px';
+}
         }
 
         // Poll at increasing intervals to catch async Salesforce rendering

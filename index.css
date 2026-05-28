@@ -6,7 +6,12 @@
 }
 
 /* ── Page ──────────────────────────────────────────────────────────────── */
-body {
+body {lightning-out-application iframe {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+    min-height: 700px !important;
+}
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
     background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%);
     min-height: 100vh;
@@ -20,13 +25,11 @@ lightning-out-application {
     width: 100%;
 }
 
-/* Force the iframe inside lightning-out-application to be tall enough */
 lightning-out-application iframe {
     display: block !important;
     width: 100% !important;
     border: none !important;
-    min-height: 500px !important;
-    overflow: hidden !important;
+    min-height: 700px !important;
 }
 
 /* ── LWC host element ───────────────────────────────────────────────────── */
