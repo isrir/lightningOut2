@@ -9,6 +9,31 @@
         return data.frontdoorUrl;
     }
 
+    /* ── Find the component AFTER Lightning Out creates it ───────────────── */
+    async function getComponentElement() {
+        // Lightning Out creates the component inside the shadow DOM
+        // Wait for it to be available
+        return new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+                // Try to find the component in the shadow DOM
+                const shadowRoot = loApp.shadowRoot;
+                if (shadowRoot) {
+                    const component = shadowRoot.querySelector('c-learning-program-form');
+                    if (component) {
+                        clearInterval(checkInterval);
+                        resolve(component);
+                    }
+                }
+            }, 100);
+            
+            // Timeout after 10 seconds
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                resolve(null);
+            }, 10000);
+        });
+    }
+
     /* ── Resize the iframe to fit its content ───────────────────────────── */
     function fixIframeHeight() {
         const iframe = loApp.querySelector('iframe');
@@ -28,14 +53,14 @@
                         doc.documentElement.offsetHeight
                     );
                     if (h > 50) {
-                        iframe.style.setProperty('height', h + 'px', 'important');
-                        iframe.style.setProperty('min-height', h + 'px', 'important');
+                        iframe.style.height = h + 'px';
+                        iframe.style.minHeight = h + 'px';
                     }
                 }
             } catch (e) {
                 // Cross-origin fallback: use a safe minimum height
-                iframe.style.setProperty('height', '500px', 'important');
-                iframe.style.setProperty('min-height', '500px', 'important');
+                iframe.style.height = '500px';
+                iframe.style.minHeight = '500px';
             }
         }
 
@@ -44,22 +69,33 @@
             setTimeout(applyHeight, delay)
         );
 
-        // Also watch for dynamic content changes (e.g. program selection)
+        // Also watch for dynamic content changes
         if (window.ResizeObserver) {
             const ro = new ResizeObserver(() => applyHeight());
             ro.observe(iframe);
         }
 
-        // Listen for messages from the iframe (if LWC sends any)
+        // Listen for messages from the iframe
         window.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'lp-form-resize') {
                 const h = event.data.height;
                 if (h > 50) {
-                    iframe.style.setProperty('height', h + 'px', 'important');
-                    iframe.style.setProperty('min-height', h + 'px', 'important');
+                    iframe.style.height = h + 'px';
+                    iframe.style.minHeight = h + 'px';
                 }
             }
         });
+    }
+
+    /* ── Set component styles (alternative method) ──────────────────────── */
+    async function setComponentStyles() {
+        const component = await getComponentElement();
+        if (component) {
+            // Apply styles directly to the component
+            component.style.setProperty('--lp-form-min-height', '420px');
+            component.style.setProperty('--lp-textarea-min-height', '120px');
+            console.log('[LO2] Component styles applied');
+        }
     }
 
     /* ── Main init ──────────────────────────────────────────────────────── */
@@ -70,8 +106,13 @@
             loApp.setAttribute('frontdoor-url', frontdoorUrl);
 
             // 2. Application ready — iframe exists and LWC is mounted
-            loApp.addEventListener('lo.application.ready', () => {
+            loApp.addEventListener('lo.application.ready', async () => {
                 console.log('[LO2] Application ready');
+                
+                // Apply styles to the component
+                await setComponentStyles();
+                
+                // Setup iframe height adjustment
                 fixIframeHeight();
             });
 
@@ -81,18 +122,27 @@
                 fixIframeHeight();
             });
 
-            // 4. Handle LWC custom events bubbled to the host
-            const component = document.getElementById('learningProgramComponent');
-            if (component) {
-                component.addEventListener('formsubmitted', (event) => {
-                    console.log('[LO2] Form submitted', event.detail);
-                    alert('Enrollment submitted successfully!');
-                });
-            }
+            // 4. Listen for custom events from the component
+            // Need to wait for component to be available
+            loApp.addEventListener('lo.component.ready', async (event) => {
+                console.log('[LO2] Component ready');
+                
+                const component = await getComponentElement();
+                if (component) {
+                    component.addEventListener('formsubmitted', (event) => {
+                        console.log('[LO2] Form submitted', event.detail);
+                        alert('Enrollment submitted successfully!');
+                    });
+                }
+            });
 
             // 5. Error handling
             loApp.addEventListener('lo.application.error', (event) => {
-                console.error('[LO2] Error:', event.detail);
+                console.error('[LO2] Application error:', event.detail);
+            });
+            
+            loApp.addEventListener('lo.component.error', (event) => {
+                console.error('[LO2] Component error:', event.detail);
             });
 
         } catch (error) {

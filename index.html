@@ -7,21 +7,22 @@
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
-    <script
-        src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"
-        async>
+    <!-- Load Lightning Out library FIRST -->
+    <script 
+        src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js">
     </script>
 
-    <lightning-out-application
+    <!-- Lightning Out Application - MUST be self-closing with NO child nodes -->
+    <lightning-out-application 
         id="loApp"
         app-id="1UsdN00000025rdSAA"
-        components="c-learning-program-form">
-    </lightning-out-application>
+        components="c-learning-program-form" />
 
-    <c-learning-program-form
-        id="learningProgramComponent"
-        style="--lp-form-min-height: 420px; --lp-textarea-min-height: 120px;">
-    </c-learning-program-form>
+    <!-- 
+        IMPORTANT: Do NOT include <c-learning-program-form> as a separate element!
+        The component is automatically instantiated inside the lightning-out-application.
+        If you need to reference the component, you must find it after it's created.
+    -->
 
     <script src="index.js"></script>
 </body>
