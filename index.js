@@ -1,6 +1,5 @@
 (function() {
     const loApp = document.getElementById('loApp');
-    const component = document.getElementById('learningProgramComponent');
 
     function autoSizeIframe(iframe) {
         if (!iframe) return;
@@ -93,12 +92,6 @@
             loApp.addEventListener('lo.application.error', (event) => {
                 console.error('Error:', event.detail);
             });
-
-            if (component) {
-                component.addEventListener('formSubmitted', (event) => {
-                    alert('Enrollment submitted successfully!');
-                });
-            }
 
         } catch (error) {
             console.error('Init error:', error);
