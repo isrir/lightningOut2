@@ -9,11 +9,11 @@ body {
     background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%);
     min-height: 100vh;
     padding: 20px;
-    margin: 0;
 }
 
 .container {
-    display: none;
+    max-width: 900px;
+    margin: 0 auto;
 }
 
 .component-wrapper {
@@ -23,8 +23,8 @@ body {
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     position: relative;
     height: auto;
-    min-height: auto;
-    overflow: visible !important;
+    min-height: 900px;
+    overflow: visible;
 }
 
 
@@ -33,8 +33,6 @@ iframe {
     width: 100% !important;
     border: none !important;
     height: auto !important;
-    min-height: 800px !important;
-    max-height: none !important;
     overflow: visible !important;
 }
 
@@ -42,7 +40,6 @@ lightning-out-application {
     display: block;
     width: 100%;
     height: auto !important;
-    max-height: none !important;
     overflow: visible !important;
 }
 
@@ -50,7 +47,6 @@ c-learning-program-form {
     display: block;
     width: 100%;
     height: auto !important;
-    max-height: none !important;
     overflow: visible !important;
 }
 

@@ -1,5 +1,6 @@
 (function() {
     const loApp = document.getElementById('loApp');
+    const component = document.getElementById('learningProgramComponent');
 
     function autoSizeIframe(iframe) {
         if (!iframe) return;
@@ -8,42 +9,25 @@
             try {
                 const doc = iframe.contentDocument || iframe.contentWindow?.document;
                 if (doc && doc.body) {
-                    // Force overflow visible on all levels
                     doc.body.style.overflow = 'visible';
                     doc.documentElement.style.overflow = 'visible';
-                    doc.body.style.height = 'auto';
-                    doc.documentElement.style.height = 'auto';
-                    
-                    // Get maximum of all height measurements
-                    const bodyHeight = doc.body.scrollHeight || 0;
-                    const htmlHeight = doc.documentElement.scrollHeight || 0;
-                    const h = Math.max(bodyHeight, htmlHeight, 800); // minimum 800px
-                    
+                    const h = doc.body.scrollHeight || doc.documentElement.scrollHeight;
                     if (h && h > 0) {
-                        iframe.style.height = (h + 20) + 'px'; // Add 20px buffer
+                        iframe.style.height = h + 'px';
                     }
                 }
             } catch (e) {
-                iframe.style.height = '1000px';
+                iframe.style.height = '600px';
             }
         }
 
-        // Apply height immediately and retry at multiple intervals
         applyHeight();
-        setTimeout(applyHeight, 100);
         setTimeout(applyHeight, 300);
-        setTimeout(applyHeight, 600);
-        setTimeout(applyHeight, 1000);
+        setTimeout(applyHeight, 800);
 
-        // Observe for dynamic content changes
         if (window.ResizeObserver) {
-            try {
-                const ro = new ResizeObserver(() => applyHeight());
-                ro.observe(iframe);
-                if (iframe.contentDocument?.body) {
-                    ro.observe(iframe.contentDocument.body);
-                }
-            } catch (e) {}
+            const ro = new ResizeObserver(() => applyHeight());
+            ro.observe(iframe);
         }
     }
 
@@ -92,6 +76,12 @@
             loApp.addEventListener('lo.application.error', (event) => {
                 console.error('Error:', event.detail);
             });
+
+            if (component) {
+                component.addEventListener('formSubmitted', (event) => {
+                    alert('Enrollment submitted successfully!');
+                });
+            }
 
         } catch (error) {
             console.error('Init error:', error);
