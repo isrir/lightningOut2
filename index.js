@@ -9,25 +9,42 @@
             try {
                 const doc = iframe.contentDocument || iframe.contentWindow?.document;
                 if (doc && doc.body) {
+                    // Force overflow visible on all levels
                     doc.body.style.overflow = 'visible';
                     doc.documentElement.style.overflow = 'visible';
-                    const h = doc.body.scrollHeight || doc.documentElement.scrollHeight;
+                    doc.body.style.height = 'auto';
+                    doc.documentElement.style.height = 'auto';
+                    
+                    // Get maximum of all height measurements
+                    const bodyHeight = doc.body.scrollHeight || 0;
+                    const htmlHeight = doc.documentElement.scrollHeight || 0;
+                    const h = Math.max(bodyHeight, htmlHeight, 800); // minimum 800px
+                    
                     if (h && h > 0) {
-                        iframe.style.height = h + 'px';
+                        iframe.style.height = (h + 20) + 'px'; // Add 20px buffer
                     }
                 }
             } catch (e) {
-                iframe.style.height = '600px';
+                iframe.style.height = '1000px';
             }
         }
 
+        // Apply height immediately and retry at multiple intervals
         applyHeight();
+        setTimeout(applyHeight, 100);
         setTimeout(applyHeight, 300);
-        setTimeout(applyHeight, 800);
+        setTimeout(applyHeight, 600);
+        setTimeout(applyHeight, 1000);
 
+        // Observe for dynamic content changes
         if (window.ResizeObserver) {
-            const ro = new ResizeObserver(() => applyHeight());
-            ro.observe(iframe);
+            try {
+                const ro = new ResizeObserver(() => applyHeight());
+                ro.observe(iframe);
+                if (iframe.contentDocument?.body) {
+                    ro.observe(iframe.contentDocument.body);
+                }
+            } catch (e) {}
         }
     }
 
