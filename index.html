@@ -4,22 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learning Program Enrollment</title>
+    
+    <!-- Your regular CSS for page layout (won't affect component) -->
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
-    <!-- Load Lightning Out library FIRST -->
-    <script 
-        src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js">
-    </script>
+    <script src="https://creationtechnology4.my.salesforce.com/lightning/lightning.out.latest/index.iife.prod.js"></script>
 
-    <!-- Lightning Out Application - MUST be self-closing with NO child nodes -->
     <lightning-out-application
-                id="loApp"
-                app-id="1UsdN00000025rdSAA"
-                components="c-learning-program-form">
+        id="loApp"
+        app-id="1UsdN00000025rdSAA"
+        components="c-learning-program-form">
     </lightning-out-application>
 
-    <c-learning-program-form></c-learning-program-form>
+    <!-- 
+        ✅ THIS WORKS - CSS Custom Properties in style attribute
+        Only properties starting with -- are passed to the component
+    -->
+    <c-learning-program-form 
+        id="learningProgramForm"
+        style="
+            --lp-form-min-height: 600px;
+            --lp-form-padding: 2rem;
+            --lp-form-background: #ffffff;
+            --lp-textarea-min-height: 200px;
+            --lp-textarea-border-color: #dddbda;
+            --lp-textarea-border-radius: 4px;
+            --lp-primary-color: #2e844a;
+            --lp-primary-hover: #1f5c33;
+            --lp-primary-color-disabled: #c9c9c9;
+            --lp-border-radius: 8px;
+            --lp-font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            --lp-label-color: #3e3e3c;
+            --lp-label-font-weight: 600;
+            --lp-label-margin-bottom: 0.375rem;
+            --lp-label-margin-top: 1.5rem;
+            --lp-error-color: #c23934;
+            --lp-error-background: #fef0ef;
+            --lp-loading-color: #555555;
+            --lp-spinner-color: #0070d2;
+            --lp-card-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        ">
+    </c-learning-program-form>
 
     <script src="index.js"></script>
 </body>

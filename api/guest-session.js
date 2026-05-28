@@ -1,56 +1,79 @@
 import crypto from "crypto";
 
 export default async function handler(req, res) {
-  // Tighten CORS in production — replace * with your actual frontend origin
+  // Set CORS headers for Vercel
   const allowedOrigin = process.env.ALLOWED_ORIGIN || "*";
   res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.status(200).end();
+  
+  // Handle preflight
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  
+  // Only allow GET
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed. Use GET." });
   }
 
   try {
-    const domain     = process.env.SF_DOMAIN;
-    const clientId   = process.env.SF_CLIENT_ID;
-    const username   = process.env.SF_NAMED_USER;
-    const privateKey = process.env.SF_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-    const missing = [];
-    if (!domain)     missing.push("SF_DOMAIN");
-    if (!clientId)   missing.push("SF_CLIENT_ID");
-    if (!username)   missing.push("SF_NAMED_USER");
-    if (!privateKey) missing.push("SF_PRIVATE_KEY");
-    if (missing.length > 0) {
-      return res.status(500).json({ error: "Missing env vars", missing });
+    // Get environment variables
+    const domain = process.env.SF_DOMAIN;
+    const clientId = process.env.SF_CLIENT_ID;
+    const username = process.env.SF_NAMED_USER;
+    let privateKey = process.env.SF_PRIVATE_KEY;
+    
+    // Handle private key formatting (Vercel sometimes strips newlines)
+    if (privateKey) {
+      privateKey = privateKey.replace(/\\n/g, "\n");
     }
 
-    // ── Step 1: Build & sign JWT ──────────────────────────────────────────
-    const now      = Math.floor(Date.now() / 1000);
-    const header   = Buffer.from(JSON.stringify({ alg: "RS256" })).toString("base64url");
-    const payload  = Buffer.from(JSON.stringify({
+    // Validate required env vars
+    const missing = [];
+    if (!domain) missing.push("SF_DOMAIN");
+    if (!clientId) missing.push("SF_CLIENT_ID");
+    if (!username) missing.push("SF_NAMED_USER");
+    if (!privateKey) missing.push("SF_PRIVATE_KEY");
+    
+    if (missing.length > 0) {
+      console.error("Missing env vars:", missing);
+      return res.status(500).json({ 
+        error: "Configuration error", 
+        missing,
+        hint: "Check Vercel environment variables"
+      });
+    }
+
+    // ── Step 1: Build JWT for OAuth ──────────────────────────────────────
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: "RS256" })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({
       iss: clientId,
       sub: username,
       aud: "https://login.salesforce.com",
-      exp: now + 300,
+      exp: now + 300, // 5 minutes
     })).toString("base64url");
 
-    const signature = crypto
-      .createSign("RSA-SHA256")
-      .update(`${header}.${payload}`)
-      .sign(privateKey, "base64url");
-
+    // Sign the JWT
+    const sign = crypto.createSign("RSA-SHA256");
+    sign.update(`${header}.${payload}`);
+    const signature = sign.sign(privateKey, "base64url");
     const jwt = `${header}.${payload}.${signature}`;
 
     // ── Step 2: Exchange JWT for access token ─────────────────────────────
-    const tokenRes  = await fetch(`https://${domain}/services/oauth2/token`, {
+    const tokenUrl = `https://${domain}/services/oauth2/token`;
+    const tokenBody = new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    });
+
+    const tokenRes = await fetch(tokenUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion:  jwt,
-      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: tokenBody.toString(),
     });
 
     const tokenData = await tokenRes.json();
@@ -58,64 +81,62 @@ export default async function handler(req, res) {
     if (!tokenRes.ok) {
       console.error("JWT auth failed:", tokenData);
       return res.status(502).json({
-        error:  "JWT auth failed",
-        detail: tokenData.error_description ?? tokenData.error,
+        error: "JWT authentication failed",
+        detail: tokenData.error_description || tokenData.error,
       });
     }
 
     const { access_token, instance_url } = tokenData;
 
-    // ── Step 3: Try Lightning Out 2.0 frontdoor first ─────────────────────
-    // NOTE: As of 2025 this endpoint is not GA — it returns HTML for most orgs.
-    // The try/catch below handles that gracefully.
+    // ── Step 3: Try to get Lightning Out 2.0 frontdoor URL ────────────────
     let frontdoorUrl = null;
 
     try {
-      const fdRes = await fetch(
-        `${instance_url}/services/lightning/ui/2.0/frontdoor`,
-        {
-          method:  "POST",
-          headers: {
-            "Authorization": `Bearer ${access_token}`,
-            "Content-Type":  "application/json",
-          },
-          body: JSON.stringify({}),
-        }
-      );
+      const lo2Res = await fetch(`${instance_url}/services/lightning/ui/2.0/frontdoor`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
 
-      // Salesforce returns HTML when the endpoint isn't available
-      const contentType = fdRes.headers.get("content-type") || "";
+      const contentType = lo2Res.headers.get("content-type") || "";
+      
       if (contentType.includes("application/json")) {
-        const fdData = await fdRes.json();
-        if (fdData.frontdoorUrl) {
-          frontdoorUrl = fdData.frontdoorUrl;
-          console.log("✅ Used Lightning Out 2.0 frontdoor");
+        const lo2Data = await lo2Res.json();
+        if (lo2Data.frontdoorUrl) {
+          frontdoorUrl = lo2Data.frontdoorUrl;
+          console.log("✅ Using Lightning Out 2.0 frontdoor endpoint");
         }
       } else {
-        console.log("LO2 endpoint returned non-JSON — skipping");
+        console.log("⚠️ LO2 endpoint returned non-JSON, using fallback");
       }
-    } catch (fdError) {
-      console.warn("LO2 frontdoor fetch failed:", fdError.message);
+    } catch (lo2Error) {
+      console.warn("⚠️ LO2 frontdoor fetch failed:", lo2Error.message);
     }
 
     // ── Step 4: Fallback to classic frontdoor.jsp ─────────────────────────
-    // ⚠️  frontdoor.jsp tokens are short-lived (~2 min). This is fine for
-    //     immediately redirecting a browser, but don't cache this URL.
     if (!frontdoorUrl) {
-      const retUrl   = encodeURIComponent("/lightning/n/LearningProgramForm");
-      frontdoorUrl   = `${instance_url}/secur/frontdoor.jsp?sid=${access_token}&retURL=${retUrl}`;
-      console.log("Using classic frontdoor.jsp fallback");
+      // Update this to your actual component or app
+      const retUrl = encodeURIComponent("/lightning/c/learning-program-form-app");
+      frontdoorUrl = `${instance_url}/secur/frontdoor.jsp?sid=${access_token}&retURL=${retUrl}`;
+      console.log("📝 Using classic frontdoor.jsp fallback");
     }
 
-    // ── Never log the full frontdoorUrl — it contains the session token ───
-    console.log("✅ Returning frontdoorUrl for instance:", instance_url);
-    return res.status(200).json({ frontdoorUrl, instanceUrl: instance_url });
+    // Success response
+    return res.status(200).json({
+      frontdoorUrl,
+      instanceUrl: instance_url,
+      method: frontdoorUrl.includes("frontdoor.jsp") ? "classic" : "lo2"
+    });
 
   } catch (error) {
-    console.error("Unexpected error:", error.message);
+    console.error("Unexpected error:", error);
     return res.status(500).json({
-      error:   "Internal server error",
+      error: "Internal server error",
       message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 }

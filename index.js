@@ -1,174 +1,173 @@
 (function () {
     const loApp = document.getElementById('loApp');
-    const loComp = document.querySelector('c-learning-program-form');
+    const loComp = document.getElementById('learningProgramForm');
 
-    /* ── Fetch frontdoor URL from your backend ──────────────────────────── */
+    /* ── Fetch frontdoor URL from Vercel API ────────────────────────────── */
     async function getFrontdoorUrl() {
-        const response = await fetch('/api/guest-session');
-        if (!response.ok) throw new Error(`Backend returned ${response.status}`);
-        const data = await response.json();
-        return data.frontdoorUrl;
-    }
-
-    /* ── Find the component AFTER Lightning Out creates it ───────────────── */
-    async function getComponentElement() {
-        // Lightning Out creates the component inside the shadow DOM
-        // Wait for it to be available
-        return new Promise((resolve) => {
-            const checkInterval = setInterval(() => {
-                // Try to find the component in the shadow DOM
-                const shadowRoot = loApp.shadowRoot;
-                if (shadowRoot) {
-                    const component = shadowRoot.querySelector('c-learning-program-form');
-                    if (component) {
-                        clearInterval(checkInterval);
-                        resolve(component);
-                    }
-                }
-            }, 100);
+        try {
+            // For Vercel, your API is at /api/guest-session
+            const response = await fetch('/api/guest-session');
             
-            // Timeout after 10 seconds
-            setTimeout(() => {
-                clearInterval(checkInterval);
-                resolve(null);
-            }, 10000);
-        });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('[LO2] Auth method:', data.method);
+            return data.frontdoorUrl;
+        } catch (error) {
+            console.error('[LO2] Failed to get frontdoor URL:', error);
+            
+            // Show user-friendly error
+            alert(`Unable to authenticate with Salesforce: ${error.message}\n\nPlease check that:\n1. Vercel environment variables are set\n2. Connected App is properly configured\n3. API is reachable`);
+            
+            throw error;
+        }
     }
 
-    /* ── Fix iframe height based on content ─────────────────────────────── */
-    function fixIframeHeight() {
+    /* ── Apply styles to component ──────────────────────────────────────── */
+    function applyStyles() {
+        if (!loComp) return;
+        
+        // Set CSS custom properties (the ONLY way to style LO2 components)
+        loComp.style.cssText = `
+            --lp-form-min-height: 600px;
+            --lp-textarea-min-height: 200px;
+            --lp-primary-color: #2e844a;
+            --lp-primary-hover: #1f5c33;
+            --lp-border-radius: 8px;
+            --lp-card-background: #ffffff;
+            --lp-text-color: #1a1a1a;
+            --lp-spacing-unit: 1.5rem;
+            display: block;
+            width: 100%;
+        `;
+        
+        console.log('[LO2] Styles applied to component');
+    }
+
+    /* ── Handle iframe height adjustments ───────────────────────────────── */
+    function setupHeightAdjustment() {
         const iframe = loApp.querySelector('iframe');
         if (!iframe) return;
 
-        // Cross-origin fallback baseline
-        iframe.style.height = '700px';
-        iframe.style.minHeight = '700px';
-
-        // Apply height function
-        function applyHeight() {
-            if (!iframe) return;
-            
-            // Try to get height from ResizeObserver or fallback
-            const loComp = document.querySelector('c-learning-program-form');
-            if (loComp && loComp.offsetHeight > 50) {
-                iframe.style.height = (loComp.offsetHeight + 40) + 'px';
-                iframe.style.minHeight = (loComp.offsetHeight + 40) + 'px';
+        function adjustHeight() {
+            try {
+                const shadowRoot = loApp.shadowRoot;
+                if (shadowRoot) {
+                    const component = shadowRoot.querySelector('c-learning-program-form');
+                    if (component && component.offsetHeight > 50) {
+                        const newHeight = component.offsetHeight + 40;
+                        iframe.style.height = `${newHeight}px`;
+                        iframe.style.minHeight = `${newHeight}px`;
+                    }
+                }
+            } catch (e) {
+                // Ignore cross-origin errors
             }
         }
 
-        // Watch the mirror element's height — LO2 syncs it from the iframe content
-        if (loComp && window.ResizeObserver) {
-            const ro = new ResizeObserver(entries => {
-                for (const entry of entries) {
-                    const h = entry.contentRect.height;
-                    if (h > 50) {
-                        iframe.style.height = (h + 40) + 'px';
-                        iframe.style.minHeight = (h + 40) + 'px';
-                    }
-                }
-            });
-            ro.observe(loComp);
-        }
-
-        // Poll at increasing intervals to catch async Salesforce rendering
-        [100, 300, 600, 1000, 1500, 2000, 3000, 5000].forEach(delay =>
-            setTimeout(applyHeight, delay)
-        );
-
-        // Also watch for dynamic content changes
-        if (window.ResizeObserver && iframe) {
-            const ro = new ResizeObserver(() => applyHeight());
-            ro.observe(iframe);
-        }
-
-        // Listen for postMessage events from iframe
+        // Listen for resize messages from iframe
         window.addEventListener('message', (event) => {
-            // Only process messages from the Salesforce iframe
-            if (event.origin !== 'https://creationtechnology4.my.salesforce.com') return;
+            // Only accept messages from your Salesforce org
+            const allowedOrigins = [
+                'https://creationtechnology4.my.salesforce.com',
+                process.env.SF_DOMAIN
+            ].filter(Boolean);
             
-            console.log('[HOST] raw message:', JSON.stringify(event.data));
+            if (!allowedOrigins.includes(event.origin)) return;
             
-            if (event.data && event.data.type === 'lp-form-resize') {
-                const h = event.data.height;
-                if (h > 50) {
-                    iframe.style.height = h + 'px';
-                    iframe.style.minHeight = h + 'px';
-                }
+            if (event.data && event.data.type === 'lp-form-resize' && event.data.height > 50) {
+                iframe.style.height = `${event.data.height}px`;
+                iframe.style.minHeight = `${event.data.height}px`;
+            }
+        });
+
+        // Poll for height changes
+        const delays = [100, 300, 600, 1000, 2000, 3000, 5000];
+        delays.forEach(delay => setTimeout(adjustHeight, delay));
+    }
+
+    /* ── Event Handlers ─────────────────────────────────────────────────── */
+    function setupEventListeners() {
+        if (!loComp) return;
+        
+        loComp.addEventListener('formsubmitted', (event) => {
+            console.log('[LO2] Form submitted', event.detail);
+            const message = event.detail?.message || 'Enrollment submitted successfully!';
+            alert(message);
+            
+            // Optional: Send to your backend
+            if (event.detail?.data) {
+                fetch('/api/enrollment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(event.detail.data)
+                }).catch(console.error);
             }
         });
     }
 
-    /* ── Apply custom styles to the LWC component ───────────────────────── */
-    async function setComponentStyles() {
-        const component = await getComponentElement();
-        if (component) {
-            // Apply styles directly to the component
-            component.style.setProperty('--lp-form-min-height', '420px');
-            component.style.setProperty('--lp-textarea-min-height', '120px');
-            console.log('[LO2] Component styles applied');
-        }
-    }
-
-    /* ── Main init ──────────────────────────────────────────────────────── */
+    /* ── Main Init ──────────────────────────────────────────────────────── */
     async function init() {
         try {
-            // 1. Get session URL from backend
+            console.log('[LO2] Initializing...');
+            
+            // Get and set frontdoor URL
             const frontdoorUrl = await getFrontdoorUrl();
             loApp.setAttribute('frontdoor-url', frontdoorUrl);
-
-            // 2. Application ready — iframe exists and LWC is mounted
-            loApp.addEventListener('lo.application.ready', async () => {
+            
+            // Apply styles immediately
+            applyStyles();
+            
+            // Application ready
+            loApp.addEventListener('lo.application.ready', () => {
                 console.log('[LO2] Application ready');
-                
-                // Apply styles to the component
-                await setComponentStyles();
-                
-                // Setup iframe height adjustment
-                fixIframeHeight();
+                setupHeightAdjustment();
             });
-
-            // 3. Iframe navigated / reloaded
+            
+            // Iframe loaded
             loApp.addEventListener('lo.iframe.load', () => {
-                console.log('[LO2] iframe loaded');
-                fixIframeHeight();
+                console.log('[LO2] Iframe loaded');
+                setupHeightAdjustment();
             });
-
-            // 4. Listen for custom events from the component
-            loApp.addEventListener('lo.component.ready', async (event) => {
+            
+            // Component ready
+            loApp.addEventListener('lo.component.ready', () => {
                 console.log('[LO2] Component ready');
-                
-                const component = await getComponentElement();
-                if (component) {
-                    component.addEventListener('formsubmitted', (event) => {
-                        console.log('[LO2] Form submitted', event.detail);
-                        alert('Enrollment submitted successfully!');
-                    });
-                }
+                setupEventListeners();
             });
-
-            // 5. Error handling
+            
+            // Error handling
             loApp.addEventListener('lo.application.error', (event) => {
-                console.error('[LO2] Application error:', event.detail);
+                console.error('[LO2] App error:', event.detail);
+                alert(`Application Error: ${event.detail?.message || 'Unknown error'}`);
             });
             
             loApp.addEventListener('lo.component.error', (event) => {
                 console.error('[LO2] Component error:', event.detail);
             });
-
+            
         } catch (error) {
-            console.error('[LO2] Init error:', error);
+            console.error('[LO2] Init failed:', error);
+            document.body.innerHTML = `
+                <div style="padding: 20px; color: red; border: 1px solid red; margin: 20px;">
+                    <h3>Failed to Load Application</h3>
+                    <p>${error.message}</p>
+                    <details>
+                        <summary>Technical Details</summary>
+                        <pre>${error.stack}</pre>
+                    </details>
+                </div>
+            `;
         }
     }
 
-    /* ── Wait for custom element to be defined before init ─────────────── */
+    // Wait for custom element
     if (customElements.get('lightning-out-application')) {
         init();
     } else {
-        const checkInterval = setInterval(() => {
-            if (customElements.get('lightning-out-application')) {
-                clearInterval(checkInterval);
-                init();
-            }
-        }, 100);
+        customElements.whenDefined('lightning-out-application').then(init);
     }
 })();
