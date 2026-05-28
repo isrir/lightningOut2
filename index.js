@@ -87,7 +87,6 @@ window.addEventListener('message', (event) => {
 });
     }
 
-    /* ── Set component styles (alternative method) ──────────────────────── */
     async function setComponentStyles() {
         const component = await getComponentElement();
         if (component) {
