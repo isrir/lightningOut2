@@ -85,6 +85,7 @@ window.addEventListener('message', (event) => {
         }
     }
 });
+
     }
 
     async function setComponentStyles() {
